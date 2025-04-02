@@ -4,7 +4,7 @@ use crate::{print, println, QemuExitCode, exit_qemu};
 use crate::vga_buffer::{self, Color, clear_screen};
 use crate::time;
 use crate::shutdown;
-
+use crate::fs::list_disks;
 
 pub fn about() {
     vga_buffer::set_color(Color::Cyan, Color::Black);
@@ -38,20 +38,25 @@ pub fn help() {
     println!("Available commands:");
     println!("  about    - Display information about EclipseOS");
     println!("  clear    - Clear the screen");
-    println!("  disk(wip)     - Displays a list of different disk drives");
+    println!("  disks    - Displays a list of different disk drives");
     println!("  echo     - Display a line of text");
     println!("  hello    - Displays \"Hello\"");
     println!("  help     - Display this help message");
     println!("  shutdown - Shutsdown the computer");
-    println!("  time(wip)     - Displays current time");
+    println!("  time     - Displays current time");
     println!("  version  - Display the current version of EclipseOS");
+}
+
+pub fn disks() {
+    list_disks::list_disks();
+}
+
+pub fn qemu_shutdown() {
+    exit_qemu(QemuExitCode::Success);
 }
 
 pub fn shutdown() {
     shutdown::shutdown();
-}
-pub fn qemu_shutdown() {
-    exit_qemu(QemuExitCode::Success);
 }
 
 pub fn time() {

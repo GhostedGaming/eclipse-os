@@ -416,32 +416,3 @@ fn test_println_output() {
         }
     });
 }
-
-pub fn test_vga() {
-    let colors = [
-        Color::Black, Color::Blue, Color::Green, Color::Cyan,
-        Color::Red, Color::Purple, Color::Brown, Color::LightGray,
-        Color::DarkGray, Color::LightBlue, Color::LightGreen, Color::LightCyan,
-        Color::LightRed, Color::Pink, Color::Yellow, Color::White
-    ];
-
-    for fg_color in colors.iter() {
-        set_color(*fg_color, Color::Black);
-        println!("#");
-    }
-
-    for bg_color in colors.iter() {
-        set_color(Color::White, *bg_color);
-        print!(" ");
-        set_color(Color::White, Color::Black);
-        print!("\n")
-    }
-    
-    set_color(Color::White, Color::Black);
-
-    print!("\nvga_buffer [");
-    set_color(Color::Green, Color::Black);
-    print!("OK");
-    set_color(Color::White, Color::Black);
-    print!("]\n");
-}

@@ -9,7 +9,7 @@ static SYSTEM_TIME: AtomicU64 = AtomicU64::new(0);
 // Store ticks since boot
 static TICKS_SINCE_BOOT: AtomicU64 = AtomicU64::new(0);
 // tick per second
-static TICKS_PER_SECOND: u64 = 15;
+static TICKS_PER_SECOND: u64 = 16;
 
 // CMOS RTC registers
 const CMOS_ADDRESS: u16 = 0x70;
@@ -42,8 +42,7 @@ pub fn init() {
 /// Increment the system tick counter (called by timer interrupt handler)
 pub fn tick() {
     let ticks = TICKS_SINCE_BOOT.fetch_add(1, Ordering::SeqCst) + 1;
-    
-    // Update system time every second (assuming timer fires at 100Hz)
+
     if ticks % TICKS_PER_SECOND == 0 {
         // Normal second increment
         let current = SYSTEM_TIME.load(Ordering::SeqCst);

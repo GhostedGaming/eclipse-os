@@ -47,8 +47,6 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     
     eclipse_os::task::keyboard::init_shell();
 
-    vga_buffer::test_vga();
-
     print!("initating time [");
     time::init();
     vga_buffer::set_color(Color::Green, Color::Black);

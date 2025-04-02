@@ -1,4 +1,4 @@
-# eclipse_os (Async/Await)
+# eclipse_os
 
 [![Build Status](https://github.com/phil-opp/eclipse_os/workflows/Code/badge.svg?branch=post-12)](https://github.com/phil-opp/eclipse_os/actions?query=workflow%3A%22Code%22+branch%3Apost-12)
 
