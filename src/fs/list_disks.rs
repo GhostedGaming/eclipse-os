@@ -6,7 +6,7 @@ use crate::println;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum DiskType {
-    Ide,
+    Hda,
     Sata,
     Nvme,
     Virtio,
@@ -46,7 +46,7 @@ fn detect_disks() -> Vec<Disk> {
 
     disks.push(Disk {
         id: 0,
-        disk_type: DiskType::Ide,
+        disk_type: DiskType::Hda,
         name: "hda".to_string(),
         size: 128 * 1024 * 1024,
     });
