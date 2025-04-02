@@ -3,22 +3,22 @@
 ## Install
 
 ### Rust install
-Windows
-```
+#### Windows
+```sh
 winget install --id Rustlang.Rustup
 ```
-Linux
-```
+#### Linux
+```sh
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
 ### QEMU install
-Windows
-```
+#### Windows
+```sh
 winget install --id=SoftwareFreedomConservancy.QEMU -e
 ```
-Linux
-```
+#### Linux
+```sh
 sudo apt install qemu-system
 ```
 
@@ -28,19 +28,19 @@ This project requires a nightly version of Rust because it uses some unstable fe
 
 You can build the project by running:
 
-```
+```sh
 cargo build
 ```
 
 To create a bootable disk image from the compiled kernel, you need to install the [`bootimage`] tool:
 
-```
+```sh
 cargo install bootimage
 ```
 
 After installing, you can create the bootable disk image by running:
 
-```
+```sh
 cargo bootimage
 ```
 
@@ -54,18 +54,17 @@ You can run the disk image in [QEMU] through:
 
 [QEMU]: https://www.qemu.org/
 
-```
+```sh
 cargo run
 ```
 
 [QEMU] and the [`bootimage`] tool need to be installed for this.
 
-You can also write the image to an USB stick for booting it on a real machine. On Linux, the command for this is:
+You can also write the image to a USB stick for booting it on a real machine. On Linux, the command for this is:
 
-```
+```sh
 dd if=target/x86_64-eclipse_os/debug/bootimage-eclipse_os.bin of=/dev/sdX && sync
 ```
-[Belena etcher]: [https://www.qemu.org/](https://etcher.balena.io/)
 
 Where `sdX` is the device name of your USB stick. **Be careful** to choose the correct device name, because everything on that device is overwritten.
 
@@ -88,3 +87,5 @@ Note that this only applies to this git branch, other branches might be licensed
 ### Contribution
 
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
+
+[Balena Etcher]: https://etcher.balena.io/
