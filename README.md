@@ -17,7 +17,6 @@ Windows
 ```
 winget install --id=SoftwareFreedomConservancy.QEMU -e
 ```
-
 Linux
 ```
 sudo apt install qemu-system
@@ -65,6 +64,10 @@ You can also write the image to an USB stick for booting it on a real machine. O
 
 ```
 dd if=target/x86_64-eclipse_os/debug/bootimage-eclipse_os.bin of=/dev/sdX && sync
+```
+You can also use belena etcher to make it easier:
+```
+https://etcher.balena.io/
 ```
 
 Where `sdX` is the device name of your USB stick. **Be careful** to choose the correct device name, because everything on that device is overwritten.
