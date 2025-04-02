@@ -1,12 +1,27 @@
-# eclipse_os
+# eclipse-os
 
-[![Build Status](https://github.com/phil-opp/eclipse_os/workflows/Code/badge.svg?branch=post-12)](https://github.com/phil-opp/eclipse_os/actions?query=workflow%3A%22Code%22+branch%3Apost-12)
+## Install
 
-This repository contains the source code for the [Async/Await][post] post of the [Writing an OS in Rust](https://os.phil-opp.com) series.
+### Rust install
+Windows
+```
+winget install --id Rustlang.Rustup
+```
+Linux
+```
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
 
-[post]: https://os.phil-opp.com/async-await/
+### QEMU install
+Windows
+```
+winget install --id=SoftwareFreedomConservancy.QEMU -e
+```
 
-**Check out the [master branch](https://github.com/phil-opp/eclipse_os) for more information.**
+Linux
+```
+sudo apt install qemu-system
+```
 
 ## Building
 
@@ -19,8 +34,6 @@ cargo build
 ```
 
 To create a bootable disk image from the compiled kernel, you need to install the [`bootimage`] tool:
-
-[`bootimage`]: https://github.com/rust-osdev/bootimage
 
 ```
 cargo install bootimage
