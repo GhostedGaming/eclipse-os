@@ -72,7 +72,7 @@ dd if=target/x86_64-eclipse_os/debug/bootimage-eclipse_os.bin of=/dev/sdX && syn
 ```
 
 An easier way would be downloading belena etcher:
-[Balena Etcher]: https://etcher.balena.io/
+https://etcher.balena.io/
 
 Where `sdX` is the device name of your USB stick. **Be careful** to choose the correct device name, because everything on that device is overwritten.
 
