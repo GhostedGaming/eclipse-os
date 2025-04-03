@@ -1,7 +1,12 @@
 # eclipse-os
 
-## Install
 
+## Prerequisites
+
+- Rust (nightly version at least _2020-07-15_)
+- QEMU
+
+## Install
 ### Rust install
 #### Windows
 ```sh
