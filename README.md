@@ -71,6 +71,9 @@ You can also write the image to a USB stick for booting it on a real machine. On
 dd if=target/x86_64-eclipse_os/debug/bootimage-eclipse_os.bin of=/dev/sdX && sync
 ```
 
+An easier way would be downloading belena etcher:
+[Balena Etcher]: https://etcher.balena.io/
+
 Where `sdX` is the device name of your USB stick. **Be careful** to choose the correct device name, because everything on that device is overwritten.
 
 ## Testing
@@ -92,5 +95,3 @@ Note that this only applies to this git branch, other branches might be licensed
 ### Contribution
 
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
-
-[Balena Etcher]: https://etcher.balena.io/
