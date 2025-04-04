@@ -12,7 +12,7 @@ unsafe fn outl(port: u16, value: u32) {
 }
 
 /// Read from an I/O port
-unsafe fn inl(port: u16) -> u32 {
+pub unsafe fn inl(port: u16) -> u32 {
     let value: u32;
     asm!("in eax, dx", out("eax") value, in("dx") port);
     value
@@ -41,7 +41,7 @@ fn pci_device_exists(bus: u8, slot: u8) -> bool {
 /// Enumerate PCI devices
 pub fn enumerate_pci_devices() -> Vec<(u8, u8, u8)> {
     let mut devices = Vec::new();
-    for bus in 0..256 {
+    for bus in 0..255 {
         for slot in 0..32 {
             for function in 0..8 {
                 if pci_device_exists(bus, slot) {
