@@ -20,6 +20,7 @@ pub mod shell;
 pub mod time;
 pub mod shutdown;
 pub mod fs;
+pub mod sounds;
 
 pub fn init() {
     gdt::init();

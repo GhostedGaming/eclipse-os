@@ -5,6 +5,7 @@ use spin::Mutex;
 use volatile::Volatile;
 
 use crate::{serial, serial_println};
+use crate::sounds;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CursorStyle {
@@ -185,6 +186,8 @@ impl Writer {
             if self.cursor_visible {
                 self.draw_cursor();
             }
+        } else {
+            sounds::play_sound(440);
         }
     }
 

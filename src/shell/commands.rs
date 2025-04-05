@@ -4,7 +4,6 @@ use crate::{print, println, QemuExitCode, exit_qemu};
 use crate::vga_buffer::{self, Color, clear_screen};
 use crate::time;
 use crate::shutdown;
-use crate::fs::disk_list;
 
 pub fn about() {
     vga_buffer::set_color(Color::Cyan, Color::Black);
@@ -48,7 +47,7 @@ pub fn help() {
 }
 
 pub fn disks() {
-    disk_list::list_disks();
+    
 }
 
 pub fn qemu_shutdown() {
