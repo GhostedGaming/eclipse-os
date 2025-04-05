@@ -12,12 +12,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - uses: Swatinem/rust-cache@v2
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@nightly
         with:
           components: rustfmt
-
-      - uses: Swatinem/rust-cache@v2
 
       - name: Run rustfmt
         run: cargo fmt -- --check
@@ -28,6 +28,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - uses: Swatinem/rust-cache@v2
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@nightly
         with:
@@ -35,8 +37,6 @@ jobs:
 
       - name: Install required cargo
         run: cargo install clippy-sarif sarif-fmt
-
-      - uses: Swatinem/rust-cache@v2
 
       - name: Run rust-clippy
         run: cargo clippy
@@ -61,10 +61,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - uses: Swatinem/rust-cache@v2
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@nightly
-
-      - uses: Swatinem/rust-cache@v2
 
       - name: Run tests
         run: cargo xtest
