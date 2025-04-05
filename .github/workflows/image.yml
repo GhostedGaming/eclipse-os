@@ -32,5 +32,5 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: bootimage
+          name: bootimage-${{ matrix.arch }}
           path: target/x86_64-eclipse_os/debug/bootimage-eclipse_os.bin
