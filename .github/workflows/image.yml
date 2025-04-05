@@ -9,7 +9,7 @@ jobs:
     strategy:
       matrix:
         arch: ["x86_64", "aarch64"]
-        fail-fast: false
+      fail-fast: false
     runs-on: ${{ matrix.arch == 'x86_64' && 'ubuntu-latest' || 'ubuntu-24.04-arm' }}
     steps:
       - name: Checkout
