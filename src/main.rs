@@ -21,7 +21,8 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     use eclipse_os::memory::{self, BootInfoFrameAllocator};
     use x86_64::VirtAddr;
 
-    vga_buffer::set_color(Color::White, Color::Black);
+    vga_buffer::set_color(Color::White, Color::Blue);
+    println!("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
 
     eclipse_os::init();
 
@@ -40,18 +41,16 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     // Perform trivial assertion and print status
     print!("Performing trivial_assertion [");
     trivial_assertion();  // This will panic if it fails
-    vga_buffer::set_color(Color::Green, Color::Black);
+    vga_buffer::set_color(Color::Green, Color::Blue);
     print!("OK");
-    vga_buffer::set_color(Color::White, Color::Black);
+    vga_buffer::set_color(Color::White, Color::Blue);
     print!("]\n");
-    
-    eclipse_os::task::keyboard::init_shell();
 
     print!("initating time [");
     time::init();
-    vga_buffer::set_color(Color::Green, Color::Black);
+    vga_buffer::set_color(Color::Green, Color::Blue);
     print!("OK");
-    vga_buffer::set_color(Color::White, Color::Black);
+    vga_buffer::set_color(Color::White, Color::Blue);
     print!("]\n");
 
     #[cfg(test)]
@@ -67,9 +66,9 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 /// Helper function to print status messages with consistent formatting
 fn print_status(component: &str) {
     print!("{} [", component);
-    vga_buffer::set_color(Color::Green, Color::Black);
+    vga_buffer::set_color(Color::Green, Color::Blue);
     print!("OK");
-    vga_buffer::set_color(Color::White, Color::Black);
+    vga_buffer::set_color(Color::White, Color::Blue);
     print!("]\n");
 }
 
@@ -94,40 +93,21 @@ async fn async_number() -> u32 {
 async fn example_task() {
     let number = async_number().await;
     print!("async_number [");
-    vga_buffer::set_color(Color::Green, Color::Black);
+    vga_buffer::set_color(Color::Green, Color::Blue);
     print!("{}", number);
-    vga_buffer::set_color(Color::White, Color::Black);
+    vga_buffer::set_color(Color::White, Color::Blue);
     print!("]\n");
     print_ascii();
 }
 
 fn print_ascii() {
-    vga_buffer::set_color(Color::Purple, Color::Black);
-    println!("\n \n");
-    println!("        .,****,.");
-    println!("     .*%%%%%%%%%%*.");
-    println!("   .*%%%%%%%%%%%%%%*");
-    println!("  *%%%%%%%%%%%%%%%%%*");
-    println!(" *%%%%%%%%%%%*****%%%*");
-    println!("*%%%%%%%%%%*     .*%%*");
-    println!("*%%%%%%%%%*        .%%*");
-    println!("*%%%%%%%%*.         *%*");
-    println!("*%%%%%%%%*          *%*");
-    println!("*%%%%%%%%*          *%*");
-    println!("*%%%%%%%%*.         *%*");
-    println!("*%%%%%%%%%*.       .%%*");
-    println!("*%%%%%%%%%%*.     .%%%*");
-    println!(" *%%%%%%%%%%%%*****%%%*");
-    println!("  *%%%%%%%%%%%%%%%%%*");
-    println!("   .*%%%%%%%%%%%%%*");
-    println!("     .*%%%%%%%%%*.");
-    println!("        .,****,.");
+    vga_buffer::set_color(Color::Purple, Color::Blue);
+    vga_buffer::set_color(Color::Cyan, Color::Blue);
     println!("");
-    vga_buffer::set_color(Color::Cyan, Color::Black);
+    println!("      --ECLIPSE OS--     ");
     println!("");
-    println!("       =ECLIPSE OS=      ");
-    println!("");
-    vga_buffer::set_color(Color::White, Color::Black);
+    vga_buffer::set_color(Color::White, Color::Blue);
+    eclipse_os::task::keyboard::init_shell();
 }
 
 #[test_case]

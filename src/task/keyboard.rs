@@ -141,7 +141,6 @@ pub async fn print_keypresses() {
                             },
                             // Handle tab (0x09)
                             '\u{0009}' => {
-                                // For now, just convert tab to 4 spaces
                                 print!("    ");
                             },
                             // Handle escape (0x1B)

@@ -69,7 +69,6 @@ impl Shell {
     }
 
     pub fn start(&mut self) {
-        vga_buffer::clear_screen();
         println!("EclipseOS Shell v0.1.0");
         println!("Type 'help' for available commands.");
         print!("eclipse> ");

@@ -15,7 +15,7 @@ pub fn play_sound(frequency: u32) {
 
     // Enable the PC speaker
     unsafe {
-        let mut speaker: u8 = speaker_port.read();
+        let speaker: u8 = speaker_port.read();
         if speaker & 0x03 != 0x03 {
             speaker_port.write(speaker | 0x03);
         }
@@ -27,7 +27,7 @@ pub fn stop_sound() {
 
     // Disable the PC speaker
     unsafe {
-        let mut speaker: u8 = speaker_port.read();
+        let speaker: u8 = speaker_port.read();
         speaker_port.write(speaker & 0xFC);
     }
 }
