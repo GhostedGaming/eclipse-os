@@ -1,5 +1,1 @@
-mod afs;
-pub use afs::*;
-
-mod ext2;
-pub use ext2::*;
+pub mod list_disks;

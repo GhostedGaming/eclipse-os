@@ -11,7 +11,6 @@ use eclipse_os::task::{Task, executor::Executor, keyboard};
 use bootloader::{BootInfo, entry_point};
 use core::panic::PanicInfo;
 use eclipse_os::vga_buffer::{self, Color};
-use eclipse_os::shell::Shell;
 use eclipse_os::time;
 
 entry_point!(kernel_main);
@@ -20,9 +19,6 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     use eclipse_os::allocator;
     use eclipse_os::memory::{self, BootInfoFrameAllocator};
     use x86_64::VirtAddr;
-
-    vga_buffer::set_color(Color::White, Color::Blue);
-    println!("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
 
     eclipse_os::init();
 
@@ -41,16 +37,16 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     // Perform trivial assertion and print status
     print!("Performing trivial_assertion [");
     trivial_assertion();  // This will panic if it fails
-    vga_buffer::set_color(Color::Green, Color::Blue);
+    vga_buffer::set_color(Color::Green, Color::Black);
     print!("OK");
-    vga_buffer::set_color(Color::White, Color::Blue);
+    vga_buffer::set_color(Color::White, Color::Black);
     print!("]\n");
 
     print!("initating time [");
     time::init();
-    vga_buffer::set_color(Color::Green, Color::Blue);
+    vga_buffer::set_color(Color::Green, Color::Black);
     print!("OK");
-    vga_buffer::set_color(Color::White, Color::Blue);
+    vga_buffer::set_color(Color::White, Color::Black);
     print!("]\n");
 
     #[cfg(test)]
@@ -66,9 +62,9 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 /// Helper function to print status messages with consistent formatting
 fn print_status(component: &str) {
     print!("{} [", component);
-    vga_buffer::set_color(Color::Green, Color::Blue);
+    vga_buffer::set_color(Color::Green, Color::Black);
     print!("OK");
-    vga_buffer::set_color(Color::White, Color::Blue);
+    vga_buffer::set_color(Color::White, Color::Black);
     print!("]\n");
 }
 
@@ -93,20 +89,20 @@ async fn async_number() -> u32 {
 async fn example_task() {
     let number = async_number().await;
     print!("async_number [");
-    vga_buffer::set_color(Color::Green, Color::Blue);
+    vga_buffer::set_color(Color::Green, Color::Black);
     print!("{}", number);
-    vga_buffer::set_color(Color::White, Color::Blue);
+    vga_buffer::set_color(Color::White, Color::Black);
     print!("]\n");
     print_ascii();
 }
 
 fn print_ascii() {
-    vga_buffer::set_color(Color::Purple, Color::Blue);
-    vga_buffer::set_color(Color::Cyan, Color::Blue);
+    vga_buffer::set_color(Color::Purple, Color::Black);
+    vga_buffer::set_color(Color::Cyan, Color::Black);
     println!("");
     println!("      --ECLIPSE OS--     ");
     println!("");
-    vga_buffer::set_color(Color::White, Color::Blue);
+    vga_buffer::set_color(Color::White, Color::Black);
     eclipse_os::task::keyboard::init_shell();
 }
 

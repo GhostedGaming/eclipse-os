@@ -1,8 +1,6 @@
 pub mod commands;
 
 use alloc::string::String;
-use alloc::vec::Vec;
-use core::str::SplitWhitespace;
 use crate::vga_buffer;
 use crate::{print, println, QemuExitCode, exit_qemu};
 

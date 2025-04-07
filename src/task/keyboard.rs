@@ -1,6 +1,6 @@
 // Import necessary modules and types
 use crate::{print, println};
-use crate::vga_buffer::{self, Writer};
+use crate::vga_buffer::WRITER;
 use conquer_once::spin::OnceCell;
 use crate::shell::Shell;
 use alloc::sync::Arc;
@@ -149,8 +149,14 @@ pub async fn print_keypresses() {
                             },
                             // Handle all other printable characters
                             _ => {
-                                // Pass to shell for processing
-                                SHELL.lock().process_keypress(character);
+                                let column_pos = WRITER.lock().column_position();
+
+                                if column_pos > 78 {
+                                    
+                                } else {
+                                    // Pass to shell for processing
+                                    SHELL.lock().process_keypress(character);
+                                }
                             }
                         }
                     },

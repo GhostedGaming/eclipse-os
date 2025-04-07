@@ -7,7 +7,6 @@
 
 extern crate alloc;
 use core::panic::PanicInfo;
-use crate::vga_buffer::Color;
 
 pub mod allocator;
 pub mod gdt;

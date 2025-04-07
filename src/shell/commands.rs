@@ -1,6 +1,6 @@
 use alloc::string::String;
 use core::str::SplitWhitespace;
-use crate::{print, println, QemuExitCode, exit_qemu};
+use crate::{println, QemuExitCode, exit_qemu};
 use crate::vga_buffer::{self, Color, clear_screen};
 use crate::time;
 use crate::shutdown;

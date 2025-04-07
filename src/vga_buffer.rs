@@ -1,10 +1,7 @@
 use core::fmt;
-use futures_util::future::select;
 use lazy_static::lazy_static;
 use spin::Mutex;
 use volatile::Volatile;
-
-use crate::{serial, serial_println};
 use crate::sounds;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -186,9 +183,13 @@ impl Writer {
             if self.cursor_visible {
                 self.draw_cursor();
             }
-        } else {
+        } else { //Got to write a speaker driver :(
             sounds::play_sound(440);
         }
+    }
+
+    pub fn column_position(&self) -> usize {
+        return self.column_position;
     }
 
     pub fn draw_cursor(&mut self) {
