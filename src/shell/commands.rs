@@ -4,6 +4,7 @@ use crate::{println, QemuExitCode, exit_qemu};
 use crate::vga_buffer::{self, Color, clear_screen};
 use crate::time;
 use crate::shutdown;
+use crate::fs::list_disks::print_disks;
 
 pub fn about() {
     vga_buffer::set_color(Color::Cyan, Color::Black);
@@ -20,13 +21,27 @@ pub fn clear() {
 
 pub fn echo(mut args: SplitWhitespace) {
     let mut output = String::new();
+    let slurs = [
+        "fuck", "shit", "ass", "bitch", "damn", "crap", "hell", 
+        "dick", "pussy", "nigger", "nigga", "cunt", "asshole", 
+        "motherfucker", "bullshit", "bastard", "piss"
+    ];
     
     while let Some(arg) = args.next() {
         output.push_str(arg);
         output.push(' ');
     }
     
-    println!("{}", output.trim_end());
+    let trimmed_output = output.trim_end();
+    
+    // Check if the output contains any slurs
+    let contains_slur = slurs.iter().any(|&slur| trimmed_output.to_lowercase().contains(slur));
+    
+    if contains_slur {
+        println!("[Filtered content]");
+    } else {
+        println!("{}", trimmed_output);
+    }
 }
 
 pub fn hello() {
@@ -47,7 +62,7 @@ pub fn help() {
 }
 
 pub fn disks() {
-    
+    print_disks();
 }
 
 pub fn qemu_shutdown() {
