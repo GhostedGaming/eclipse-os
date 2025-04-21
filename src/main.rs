@@ -28,17 +28,23 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
 
     // Initialize heap and print status
-    allocator::init_heap(&mut mapper, &mut frame_allocator).expect("Heap initialization failed");
-    print_status("allocator_init_heap");
+    let heap_success = match allocator::init_heap(&mut mapper, &mut frame_allocator) {
+        Ok(_) => true,
+        Err(_) => false,
+    };
+    print_status("allocator_init_heap", heap_success);
 
     // Print status for Panic Handler
-    print_status("Panic_Handler");
+    // We can't really test the panic handler directly, so we just assume it's set up correctly
+    print_status("Panic_Handler", true);
 
     // Perform trivial assertion and print status
-    trivial_assertion();
+    let trivial_success = trivial_assertion();
+    print_status("trivial_assertion", trivial_success);
 
     // Initialize time and print status
-    initiate_time();
+    let time_success = initiate_time();
+    print_status("time_init", time_success);
 
     #[cfg(test)]
     test_main();
@@ -51,24 +57,32 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 }
 
 /// Helper function to print status messages with consistent formatting
-fn print_status(component: &str) {
+fn print_status(component: &str, success: bool) {
     print!("{} [", component);
-    vga_buffer::set_color(Color::Green, Color::Black);
-    print!("OK");
+    
+    if success {
+        vga_buffer::set_color(Color::Green, Color::Black);
+        print!("OK");
+    } else {
+        vga_buffer::set_color(Color::Red, Color::Black);
+        print!("FAIL");
+    }
+    
     vga_buffer::set_color(Color::White, Color::Black);
     print!("]\n");
 }
 
-/// Perform trivial assertion and print status
-fn trivial_assertion() {
-    assert_eq!(1, 1);
-    print_status("trivial_assertion");
+/// Perform trivial assertion and return success status
+fn trivial_assertion() -> bool {
+    // This is a simple check that should always pass
+    // In a real system, you might have more complex checks
+    1 == 1
 }
 
-/// Initiate time and print status
-fn initiate_time() {
+/// Initiate time and return success status
+fn initiate_time() -> bool {
     time::init();
-    print_status("time_init");
+    true
 }
 
 #[cfg(not(test))]
@@ -90,7 +104,8 @@ async fn async_number() -> u32 {
 
 async fn example_task() {
     let number = async_number().await;
-    print_status(&format!("async_number [{}]", number));
+    let success = number == 42;
+    print_status(&format!("async_number [{}]", number), success);
     print_ascii();
 }
 

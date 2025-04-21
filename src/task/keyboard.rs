@@ -1,5 +1,5 @@
 // Import necessary modules and types
-use crate::{print, println};
+use crate::{print, println, vga_buffer};
 use crate::vga_buffer::WRITER;
 use conquer_once::spin::OnceCell;
 use crate::shell::Shell;
@@ -35,6 +35,12 @@ pub fn init_shell() {
 /// Called by the keyboard interrupt handler
 ///
 /// Must not block or allocate.
+
+pub fn cursror() {
+    vga_buffer::set_cursor_visibility(true);
+    vga_buffer::set_cursor_style(vga_buffer::CursorStyle::Underline);
+}
+
 pub(crate) fn add_scancode(scancode: u8) {
     // Try to get the scancode queue
     if let Ok(queue) = SCANCODE_QUEUE.try_get() {
