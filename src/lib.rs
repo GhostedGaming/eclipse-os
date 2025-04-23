@@ -20,6 +20,7 @@ pub mod time;
 pub mod shutdown;
 pub mod fs;
 pub mod sounds;
+mod text_editor;
 
 pub fn init() {
     gdt::init();

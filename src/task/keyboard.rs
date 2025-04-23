@@ -3,7 +3,7 @@ use crate::{print, println, vga_buffer};
 use crate::vga_buffer::WRITER;
 use conquer_once::spin::OnceCell;
 use crate::shell::Shell;
-use crate::text_editor::express_editor;
+use crate::text_editor::express_editor::Data;
 use alloc::sync::Arc;
 use spin::Mutex;
 use lazy_static::lazy_static;
@@ -200,10 +200,11 @@ pub async fn print_keypresses() {
                             
                             // Navigation keys (no visible output currently)
                             KeyCode::ArrowUp => {
-                                if express_editor::Data::active {
-
+                                let editor_data = Data { active: true }; // Example instance
+                                if editor_data.active {
+                                    vga_buffer::move_cursor_up(1);
                                 } else {
-                                    
+
                                 }
                             },
                             KeyCode::ArrowDown => {},

@@ -192,6 +192,13 @@ impl Writer {
         return self.column_position;
     }
 
+    pub fn move_cursor_up(&mut self, lines: usize) {
+        // Move the cursor up one line, if not already at the top
+        if self.column_position > 0 {
+            self.column_position -= lines;
+        }
+    }
+
     pub fn draw_cursor(&mut self) {
         let row = BUFFER_HEIGHT - 1;
         let col = self.column_position;
@@ -334,6 +341,14 @@ pub fn _print(args: fmt::Arguments) {
 
     interrupts::without_interrupts(|| {
         WRITER.lock().write_fmt(args).unwrap();
+    });
+}
+
+pub fn move_cursor_up(lines: usize) {
+    use x86_64::instructions::interrupts;
+    
+    interrupts::without_interrupts(|| {
+        WRITER.lock().move_cursor_up(lines);
     });
 }
 
