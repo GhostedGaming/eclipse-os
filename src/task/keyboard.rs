@@ -3,6 +3,7 @@ use crate::{print, println, vga_buffer};
 use crate::vga_buffer::WRITER;
 use conquer_once::spin::OnceCell;
 use crate::shell::Shell;
+use crate::express::express_editor;
 use alloc::sync::Arc;
 use spin::Mutex;
 use lazy_static::lazy_static;
@@ -198,7 +199,13 @@ pub async fn print_keypresses() {
                             KeyCode::RAltGr => {},
                             
                             // Navigation keys (no visible output currently)
-                            KeyCode::ArrowUp => {},
+                            KeyCode::ArrowUp => {
+                                if express_editor::Data::active {
+
+                                } else {
+                                    
+                                }
+                            },
                             KeyCode::ArrowDown => {},
                             KeyCode::ArrowLeft => {},
                             KeyCode::ArrowRight => {},
