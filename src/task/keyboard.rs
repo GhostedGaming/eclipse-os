@@ -3,7 +3,7 @@ use crate::{print, println, vga_buffer};
 use crate::vga_buffer::WRITER;
 use conquer_once::spin::OnceCell;
 use crate::shell::Shell;
-use crate::express::express_editor;
+use crate::text_editor::express_editor;
 use alloc::sync::Arc;
 use spin::Mutex;
 use lazy_static::lazy_static;
