@@ -1,24 +1,40 @@
 use alloc::string::String;
 use crate::println;
 extern crate alloc;
+use lazy_static::lazy_static;
+use spin::Mutex;
 
 /// A struct to represent editor data.
 pub struct Data {
     pub active: bool,
+    pub text: String,
 }
 
-/// Processes the given text and returns the processed output.
-/// For now, this is a stub and can be extended with actual text processing logic.
-fn text_processor(text: String) -> String {
-    // Example of text processing: converting to uppercase
+lazy_static! {
+    static ref EDITOR_DATA: Mutex<Data> = Mutex::new(Data {
+        active: false,
+        text: String::new(),
+    });
+}
+
+impl Data {
+    pub fn set_express_editor(&mut self, state: bool) {
+        self.active = state;
+    }
+}
+
+pub fn set_editor_active(state: bool) {
+    EDITOR_DATA.lock().active = state;
+}
+
+pub fn text_processor(text: String) -> String {
     text.to_uppercase()
 }
 
-/// Initializes the text editor by setting up necessary configurations.
-fn init_editor() {
+pub fn init_editor() {
     println!("Welcome to the Text Editor!");
 }
 
-fn init_setup() {
+pub fn init_setup() {
 
 }

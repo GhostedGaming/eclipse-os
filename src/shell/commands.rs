@@ -3,7 +3,9 @@ use core::str::SplitWhitespace;
 use crate::{println, QemuExitCode, exit_qemu};
 use crate::vga_buffer::{self, Color, clear_screen};
 use crate::time;
+use crate::fs;
 use crate::shutdown;
+use crate::text_editor;
 
 pub fn about() {
     vga_buffer::set_color(Color::Cyan, Color::Black);
@@ -21,9 +23,8 @@ pub fn clear() {
 pub fn echo(mut args: SplitWhitespace) {
     let mut output = String::new();
     let slurs = [
-        "fuck", "shit", "ass", "bitch", "damn", "crap", "hell", 
-        "dick", "pussy", "nigger", "nigga", "cunt", "asshole", 
-        "motherfucker", "bullshit", "bastard", "piss"
+        //disregard this its stupid
+        "fgewfew", "hgergre",
     ];
     
     while let Some(arg) = args.next() {
@@ -43,6 +44,11 @@ pub fn echo(mut args: SplitWhitespace) {
     }
 }
 
+pub fn express() {
+    text_editor::express_editor::set_editor_active(true);
+    text_editor::express_editor::init_editor();
+}
+
 pub fn hello() {
     println!("Hello");
 }
@@ -51,16 +57,17 @@ pub fn help() {
     println!("Available commands:");
     println!("  about    - Display information about EclipseOS");
     println!("  clear    - Clear the screen");
-    println!("  disks    - Displays a list of different disk drives");
+    println!("  ls       - Lists the contents of a directory");
     println!("  echo     - Display a line of text");
     println!("  hello    - Displays \"Hello\"");
     println!("  help     - Display this help message");
     println!("  shutdown - Shutsdown the computer");
     println!("  time     - Displays current time");
     println!("  version  - Display the current version of EclipseOS");
+    println!("  express  - Activates the express text editor");
 }
 
-pub fn disks() {
+pub fn ls() {
 
 }
 

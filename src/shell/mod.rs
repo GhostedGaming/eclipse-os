@@ -61,7 +61,8 @@ impl Shell {
             "shutdown" => commands::shutdown(),
             "qemu_shutdown" => exit_qemu(QemuExitCode::Failed),
             "time" => commands::time(),
-            "disks" => commands::disks(),
+            "disks" => commands::ls(),
+            "express" => commands::express(),
             _ => println!("Unknown command: {}. Type 'help' for available commands.", command),
         }
     }

@@ -1,7 +1,9 @@
 // Import necessary modules and types
 use crate::{print, println, vga_buffer};
 use crate::vga_buffer::WRITER;
+use alloc::string::{self, ToString};
 use conquer_once::spin::OnceCell;
+use time::Date;
 use crate::shell::Shell;
 use crate::text_editor::express_editor::Data;
 use alloc::sync::Arc;
@@ -200,14 +202,21 @@ pub async fn print_keypresses() {
                             
                             // Navigation keys (no visible output currently)
                             KeyCode::ArrowUp => {
-                                let editor_data = Data { active: true }; // Example instance
+                                let editor_data = Data { active: true, text: "".to_string() };
                                 if editor_data.active {
                                     vga_buffer::move_cursor_up(1);
                                 } else {
 
                                 }
                             },
-                            KeyCode::ArrowDown => {},
+                            KeyCode::ArrowDown => {
+                                let editor_data = Data { active: true, text: "".to_string() };
+                                if editor_data.active {
+                                    vga_buffer::move_cursor_up(1);
+                                } else {
+
+                                }
+                            },
                             KeyCode::ArrowLeft => {},
                             KeyCode::ArrowRight => {},
                             KeyCode::Escape => {},
