@@ -47,6 +47,7 @@ pub fn echo(mut args: SplitWhitespace) {
 pub fn express() {
     text_editor::express_editor::set_editor_active(true);
     text_editor::express_editor::init_editor();
+    clear();
 }
 
 pub fn hello() {
@@ -55,7 +56,7 @@ pub fn hello() {
 
 pub fn help() {
     println!("Available commands:");
-    println!("  about    - Display information about EclipseOS");
+    println!("  about    - Display information about EclipseS");
     println!("  clear    - Clear the screen");
     println!("  ls       - Lists the contents of a directory");
     println!("  echo     - Display a line of text");
