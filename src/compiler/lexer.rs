@@ -1,128 +1,96 @@
+extern crate alloc;
+use alloc::vec::Vec;
+
 #[derive(Debug, PartialEq)]
-pub enum Token {
-    Let,                // `let` keyword
-    Fn,                 // `fn` keyword
-    Identifier(String), // Variable or function names
-    Number(f64),        // Numeric literals
-    String(String),     // String literals
-    Plus,               // `+` operator
-    Minus,              // `-` operator
-    Multiply,           // `*` operator
-    Divide,             // `/` operator
-    Equals,             // `=` operator
-    OpenParen,          // `(` symbol
-    CloseParen,         // `)` symbol
-    OpenBrace,          // `{` symbol
-    CloseBrace,         // `}` symbol
-    Semicolon,          // `;` symbol
-    Colon,              // `:` symbol
-    Comma,              // `,` symbol
-    EOF,                // End of file
+pub enum Tokens {
+    // Components
+    Let,
+    Fn,
+    Identifier(String),
+    Number(f64),
+    String(String),
+    Plus,
+    Minus,
+    Multiply,
+    Divide,
+    Equals,
+    OpenParan,
+    CloseParan,
+    OpenBrace,
+    CloseBrace,
+    Semicolon,
+    Colon,
+    Comma,
+    EOF,
+
+    // Statements
+    If,
+    Else,
+    While,
+    For,
+    Break,
+    Continue,
+    Struct,
+    Enum,
+    Mut,
+
+    // Operators
+    EqualsEquals,
+    NotEquals,
+    GreaterThan,
+    LessThan,
+    GreaterEquals,
+    LessEquals,
+    And,
+    Or,
+    Not,
+    PlusEquals,
+    MinusEquals,
+    MultiplyEquals,
+    DivideEquals,
+
+    // Misc
+    OpenBracket,
+    CloseBracket,
+
+    Dot,
 }
 
-pub fn lex(input: &str) -> Vec<Token> {
-    let mut tokens = Vec::new();
-    let mut chars = input.chars().peekable();
+const example1: &str = "
+    fn main() {
+        let var1 = 1;
+        let var2 = 2;
 
-    while let Some(&ch) = chars.peek() {
-        match ch {
-            ' ' | '\t' | '\n' => {
-                chars.next(); // Skip whitespace
+        print(\"{}\" var1+var2)
+    }
+";
+
+fn lexer(src: &str) -> Result<(Vec<Tokens>, &str), (Vec<Tokens>, &str)> {
+    let mut src_bytes = src.as_bytes();
+    let mut tokens = Vec::new();
+
+    'tokenizing:loop {
+        src_bytes = match src_bytes {
+            [b'f',b'n', b' ', rest@..] => {
+                tokens.push(Tokens::Fn);
+                rest
             }
-            'a'..='z' | 'A'..='Z' => {
-                let mut identifier = String::new();
-                while let Some(&c) = chars.peek() {
-                    if c.is_alphanumeric() || c == '_' {
-                        identifier.push(c);
-                        chars.next();
+            [b'/',b'/', rest@..] => {
+                let mut rest = rest;
+                'ignoring_comment:loop {
+                    let [first, rest1@..] = rest else {
+                        break 'tokenizing
+                    };
+
+                    rest = rest1;
+
+                    if first == b'\n' {
+                        continue 'tokenizing
                     } else {
-                        break;
+                        continue 'ignoring_comment
                     }
                 }
-                tokens.push(match identifier.as_str() {
-                    "let" => Token::Let,
-                    "fn" => Token::Fn,
-                    _ => Token::Identifier(identifier),
-                });
             }
-            '0'..='9' => {
-                let mut number = String::new();
-                while let Some(&digit) = chars.peek() {
-                    if digit.is_numeric() || digit == '.' {
-                        number.push(digit);
-                        chars.next();
-                    } else {
-                        break;
-                    }
-                }
-                tokens.push(Token::Number(number.parse().unwrap()));
-            }
-            '"' => {
-                chars.next(); // Skip opening quote
-                let mut string = String::new();
-                while let Some(&c) = chars.peek() {
-                    if c == '"' {
-                        chars.next(); // Skip closing quote
-                        break;
-                    } else {
-                        string.push(c);
-                        chars.next();
-                    }
-                }
-                tokens.push(Token::String(string));
-            }
-            '+' => {
-                tokens.push(Token::Plus);
-                chars.next();
-            }
-            '-' => {
-                tokens.push(Token::Minus);
-                chars.next();
-            }
-            '*' => {
-                tokens.push(Token::Multiply);
-                chars.next();
-            }
-            '/' => {
-                tokens.push(Token::Divide);
-                chars.next();
-            }
-            '=' => {
-                tokens.push(Token::Equals);
-                chars.next();
-            }
-            '(' => {
-                tokens.push(Token::OpenParen);
-                chars.next();
-            }
-            ')' => {
-                tokens.push(Token::CloseParen);
-                chars.next();
-            }
-            '{' => {
-                tokens.push(Token::OpenBrace);
-                chars.next();
-            }
-            '}' => {
-                tokens.push(Token::CloseBrace);
-                chars.next();
-            }
-            ';' => {
-                tokens.push(Token::Semicolon);
-                chars.next();
-            }
-            ':' => {
-                tokens.push(Token::Colon);
-                chars.next();
-            }
-            ',' => {
-                tokens.push(Token::Comma);
-                chars.next();
-            }
-            _ => panic!("Unexpected character: {}", ch),
         }
     }
-
-    tokens.push(Token::EOF);
-    tokens
 }
