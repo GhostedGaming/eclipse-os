@@ -91,6 +91,22 @@ fn lexer(src: &str) -> Result<(Vec<Tokens>, &str), (Vec<Tokens>, &str)> {
                     }
                 }
             }
+            [b'+'] => {
+                tokens.push(Tokens::Plus);
+                rest
+            }
+            [b'-'] => {
+                tokens.push(Tokens::Minus);
+                rest
+            }
+            [b'/'] => {
+                tokens.push(Tokens::Divide);
+                rest
+            }
+            [b'*'] => {
+                tokens.push(Tokens::Multiply);
+                rest
+            }
         }
     }
 }

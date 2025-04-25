@@ -87,6 +87,7 @@ pub struct FileSystem {
 }
 
 impl FileSystem {
+    /// Lists the contents of a directory.
     pub fn list_directory(&self, cluster: u32, read_sector: fn(u32, &mut [u8])) -> Vec<String> {
         let mut entries = Vec::new();
         let mut buffer = [0u8; 512];
@@ -115,6 +116,133 @@ impl FileSystem {
         }
 
         entries
+    }
+
+    /// Creates a new file in the specified directory cluster.
+    pub fn create_file(
+        &self,
+        directory_cluster: u32,
+        file_name: &str,
+        file_size: u32,
+        write_sector: fn(u32, &[u8]),
+    ) -> Result<(), String> {
+        if file_name.len() > 11 {
+            return Err("File name too long (max 11 characters)".to_string());
+        }
+
+        let mut buffer = [0u8; 512];
+        let mut current_cluster = directory_cluster;
+
+        loop {
+            let sector = self.cluster_to_sector(current_cluster);
+            write_sector(sector, &buffer);
+
+            for i in 0..(self.cluster_size / core::mem::size_of::<DirectoryEntry>()) {
+                let entry_offset = i * core::mem::size_of::<DirectoryEntry>();
+                let entry_data = &mut buffer[entry_offset..entry_offset + core::mem::size_of::<DirectoryEntry>()];
+
+                if entry_data[0] == 0x00 || entry_data[0] == 0xE5 {
+                    let mut new_entry = DirectoryEntry {
+                        name: [b' '; 11],
+                        attr: 0x20, // File attribute
+                        reserved: 0,
+                        create_time_tenth: 0,
+                        create_time: 0,
+                        create_date: 0,
+                        last_access_date: 0,
+                        first_cluster_high: 0,
+                        write_time: 0,
+                        write_date: 0,
+                        first_cluster_low: 0,
+                        file_size,
+                    };
+
+                    for (i, &byte) in file_name.as_bytes().iter().enumerate() {
+                        new_entry.name[i] = byte;
+                    }
+
+                    let new_entry_bytes = unsafe {
+                        core::slice::from_raw_parts(
+                            &new_entry as *const DirectoryEntry as *const u8,
+                            core::mem::size_of::<DirectoryEntry>(),
+                        )
+                    };
+                    entry_data.copy_from_slice(new_entry_bytes);
+
+                    write_sector(sector, &buffer);
+
+                    return Ok(());
+                }
+            }
+
+            current_cluster = self.next_cluster(current_cluster);
+            if current_cluster == 0x0FFFFFFF {
+                return Err("No free directory entries available".to_string());
+            }
+        }
+    }
+
+    /// Creates a new folder (directory) in the specified directory cluster.
+    pub fn create_folder(
+        &self,
+        directory_cluster: u32,
+        folder_name: &str,
+        write_sector: fn(u32, &[u8]),
+    ) -> Result<(), String> {
+        if folder_name.len() > 11 {
+            return Err("Folder name too long (max 11 characters)".to_string());
+        }
+
+        let mut buffer = [0u8; 512];
+        let mut current_cluster = directory_cluster;
+
+        loop {
+            let sector = self.cluster_to_sector(current_cluster);
+            write_sector(sector, &buffer);
+
+            for i in 0..(self.cluster_size / core::mem::size_of::<DirectoryEntry>()) {
+                let entry_offset = i * core::mem::size_of::<DirectoryEntry>();
+                let entry_data = &mut buffer[entry_offset..entry_offset + core::mem::size_of::<DirectoryEntry>()];
+
+                if entry_data[0] == 0x00 || entry_data[0] == 0xE5 {
+                    let mut new_entry = DirectoryEntry {
+                        name: [b' '; 11],
+                        attr: 0x10, // Directory attribute
+                        reserved: 0,
+                        create_time_tenth: 0,
+                        create_time: 0,
+                        create_date: 0,
+                        last_access_date: 0,
+                        first_cluster_high: 0,
+                        write_time: 0,
+                        write_date: 0,
+                        first_cluster_low: 0,
+                        file_size: 0,
+                    };
+
+                    for (i, &byte) in folder_name.as_bytes().iter().enumerate() {
+                        new_entry.name[i] = byte;
+                    }
+
+                    let new_entry_bytes = unsafe {
+                        core::slice::from_raw_parts(
+                            &new_entry as *const DirectoryEntry as *const u8,
+                            core::mem::size_of::<DirectoryEntry>(),
+                        )
+                    };
+                    entry_data.copy_from_slice(new_entry_bytes);
+
+                    write_sector(sector, &buffer);
+
+                    return Ok(());
+                }
+            }
+
+            current_cluster = self.next_cluster(current_cluster);
+            if current_cluster == 0x0FFFFFFF {
+                return Err("No free directory entries available".to_string());
+            }
+        }
     }
 
     fn cluster_to_sector(&self, cluster: u32) -> u32 {
