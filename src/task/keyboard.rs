@@ -161,7 +161,7 @@ pub async fn print_keypresses() {
                                 let column_pos = WRITER.lock().column_position();
 
                                 if column_pos > 78 {
-                                    
+                                    println!("\n");
                                 } else {
                                     // Pass to shell for processing
                                     SHELL.lock().process_keypress(character);

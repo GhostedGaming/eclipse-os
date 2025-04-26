@@ -36,6 +36,9 @@ if [ ! -f "$FAT32_DISK" ]; then
 fi
 
 # Run QEMU with both the bootable image and the FAT32 disk
+# Using more compatible settings
 qemu-system-x86_64 -rtc base=localtime \
     -drive format=raw,file="$DESTINATION_DIR/bootimage-eclipse_os.bin" \
-    -drive format=raw,file="$FAT32_DISK",media=disk
+    -drive format=raw,file="$FAT32_DISK",media=disk \
+    -vga std \
+    -m 128M

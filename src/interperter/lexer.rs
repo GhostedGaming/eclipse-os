@@ -1,5 +1,6 @@
 extern crate alloc;
 use alloc::vec::Vec;
+use crate::println;
 
 #[derive(Debug, PartialEq)]
 pub enum Tokens {
@@ -93,6 +94,7 @@ fn lexer(src: &str) -> Result<(Vec<Tokens>, &str), (Vec<Tokens>, &str)> {
             }
             [b'+'] => {
                 tokens.push(Tokens::Plus);
+                println!("{}", add());
                 rest
             }
             [b'-'] => {
@@ -109,4 +111,8 @@ fn lexer(src: &str) -> Result<(Vec<Tokens>, &str), (Vec<Tokens>, &str)> {
             }
         }
     }
+}
+
+fn add([left, right]: f64) -> f64 {
+    return left + right
 }
