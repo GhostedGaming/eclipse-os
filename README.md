@@ -1,96 +1,113 @@
-# eclipse-os
+# 🌌 Eclipse OS
 
+![Rust](https://img.shields.io/badge/Rust-🦀-orange?style=flat-square)
+![License](https://img.shields.io/badge/License-Apache_2.0-blue?style=flat-square)
+![Contributions](https://img.shields.io/badge/Contributions-Welcome-brightgreen?style=flat-square)
 
-## Prerequisites
+Eclipse OS is a **lightweight** operating system written in **Rust**, designed for performance and simplicity. Explore the world of operating system development with this beginner-friendly project! 🚀
 
-- Rust (nightly version at least _2020-07-15_)
-- QEMU
+---
 
-## Install
-### Rust install
-#### Windows
-```sh
+## ✨ Features
+
+- 🦀 **Rust-based**: Built with the powerful and safe Rust programming language.
+- 💾 **Planned File System Support**: Ext4 and NTFS support on the roadmap.
+- 🌍 **Cross-platform Compatibility**: Build and test on major platforms.
+- ⚙️ **Customizable**: Easily extend and add new features.
+
+---
+
+## 📦 Installation
+
+### Prerequisites
+
+- 🦀 **Rust**: Install Rust from [rustup.rs](https://rustup.rs/).
+- 💻 **QEMU**: Virtual machine emulator for testing.
+
+### Install on Windows
+
+```bash
 winget install --id Rustlang.Rustup
-```
-#### Linux
-```sh
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+winget install --id SoftwareFreedomConservancy.QEMU -e
 ```
 
-### QEMU install
-#### Windows
-```sh
-winget install --id=SoftwareFreedomConservancy.QEMU -e
-```
-#### Linux
-```sh
+### Install on Linux
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 sudo apt install qemu-system
 ```
 
-## Building
+---
 
-This project requires a nightly version of Rust because it uses some unstable features. At least nightly _2020-07-15_ is required for building. You might need to run `rustup update nightly --force` to update to the latest nightly even if some components such as `rustfmt` are missing it.
+## 🛠️ Building Eclipse OS
 
-You can build the project by running:
+To build Eclipse OS, ensure you have the **nightly Rust toolchain** installed:
 
-```sh
+```bash
+rustup install nightly
+rustup override set nightly
+```
+
+Then, build the project:
+
+```bash
 cargo build
 ```
 
-To create a bootable disk image from the compiled kernel, you need to install the [`bootimage`] tool:
+To create a bootable disk image:
 
-```sh
+```bash
 cargo install bootimage
-```
-
-After installing, you can create the bootable disk image by running:
-
-```sh
 cargo bootimage
 ```
 
-This creates a bootable disk image in the `target/x86_64-eclipse_os/debug` directory.
+---
 
-Please file an issue if you have any problems.
+## 🧪 Testing
 
-## Running
+Run the unit and integration tests with:
 
-You can run the disk image in [QEMU] through:
-
-[QEMU]: https://www.qemu.org/
-
-```sh
-cargo run
+```bash
+cargo xtest
 ```
 
-[QEMU] and the [`bootimage`] tool need to be installed for this.
+---
 
-You can also write the image to a USB stick for booting it on a real machine. On Linux, the command for this is:
+## 🤝 Contributing
 
-```sh
-dd if=target/x86_64-eclipse_os/debug/bootimage-eclipse_os.bin of=/dev/sdX && sync
-```
+We **welcome contributions** from developers of all skill levels! 🛠️
 
-An easier way would be downloading belena etcher:
-https://etcher.balena.io/
+1. **Fork** the repository.
+2. **Clone** your fork:
+   ```bash
+   git clone https://github.com/<your-username>/eclipse-os.git
+   ```
+3. Create a **branch** for your feature or fix:
+   ```bash
+   git checkout -b my-feature-branch
+   ```
+4. Push your changes and open a **pull request**.
 
-Where `sdX` is the device name of your USB stick. **Be careful** to choose the correct device name, because everything on that device is overwritten.
+For detailed guidelines, check out the [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Testing
+---
 
-To run the unit and integration tests, execute `cargo xtest`.
+## 💬 Community
 
-## License
+Join the conversation, ask questions, and share ideas:
 
-Licensed under either of
+- 🗨️ **[GitHub Discussions](https://github.com/GhostedGaming/eclipse-os/discussions)**
+- 🎮 **[Discord Server](https://discord.gg/your-discord-link)**
 
-- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or
-  http://www.apache.org/licenses/LICENSE-2.0)
+---
 
-at your option.
+## 📜 License
 
-Note that this only applies to this git branch, other branches might be licensed differently.
+Licensed under the **Apache License 2.0**. See [LICENSE](LICENSE) for more details.
 
-### Contribution
+---
 
-Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
+## 🛡️ Acknowledgments
+
+Special thanks to the amazing **Rust community** and all contributors who make open-source projects possible! ❤️
