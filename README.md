@@ -69,7 +69,7 @@ cargo bootimage
 Run the unit and integration tests with:
 
 ```bash
-cargo xtest
+cargo test
 ```
 
 ---
