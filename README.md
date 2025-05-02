@@ -6,11 +6,12 @@
 
 ## Contributors ✨
 
-Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/docs/en/emoji-key)):
+Thanks to these wonderful people ([emoji key](https://allcontributors.org/docs/en/emoji-key)):
 
 <table>
   <tr>
-    <td align="center"><a href="https://github.com/GhostedGaming"><img src="https://avatars.githubusercontent.com/u/180805056?v=4" width="100px;" alt=""/><br /><sub><b>GhostedGaming</b></sub></a><br />💻 🖋️</td>
+    <td align="center"><a href="https://github.com/GhostedGaming"><img src="https://avatars.githubusercontent.com/u/180805056?v=4" width="100px;" alt=""/><br /><sub><b>GhostedGaming</b></sub></a><br />💻 📖</td>
+    <td align="center"><a href="https://github.com/madonuko"><img src="https://avatars.githubusercontent.com/u/12345678?v=4" width="100px;" alt=""/><br /><sub><b>madonuko</b></sub></a><br />🎨 🐛</td>
   </tr>
 </table>
 
