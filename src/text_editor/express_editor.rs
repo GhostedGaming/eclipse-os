@@ -14,7 +14,7 @@ pub struct Data {
 }
 
 lazy_static! {
-    static ref EDITOR_DATA: Mutex<Data> = Mutex::new(Data {
+    pub static ref EDITOR_DATA: Mutex<Data> = Mutex::new(Data {
         active: false,
         text: String::new(),
     });
@@ -43,8 +43,9 @@ pub fn text_processor(text: String) -> String {
 }
 
 pub fn init_editor() {
+    let mut editor_data = EDITOR_DATA.lock();
+    editor_data.active = true;
     println!("Welcome to the Text Editor!");
-    process_editor_text();
 }
 
 pub fn init_setup() {
@@ -52,6 +53,7 @@ pub fn init_setup() {
 }
 
 pub fn exit_editor() {
+    println!("Exiting editors...");
     if EDITOR_DATA.lock().active {
         EDITOR_DATA.lock().active = false;
         println!("Exiting editors...");

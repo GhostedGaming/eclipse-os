@@ -134,12 +134,15 @@ pub async fn print_keypresses() {
     while let Some(scancode) = scancodes.next().await {
         // Add the scancode to the keyboard and get a key event if available
         if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
-            // Update shift key state based on key event
-            if let KeyCode::LShift | KeyCode::RShift = key_event.code {
-                shift_pressed = key_event.state == KeyState::Down;
-            }
-            if let KeyCode::LControl | KeyCode::RControl = key_event.code {
-                ctrl_pressed = key_event.state == KeyState::Down;
+            // Update modifier key states based on key event
+            match key_event.code {
+                KeyCode::LShift | KeyCode::RShift => {
+                    shift_pressed = key_event.state == KeyState::Down;
+                },
+                KeyCode::LControl | KeyCode::RControl => {
+                    ctrl_pressed = key_event.state == KeyState::Down;
+                },
+                _ => {}
             }
             
             // Process the key event to get a decoded key
@@ -147,6 +150,13 @@ pub async fn print_keypresses() {
                 match key {
                     // Handle Unicode characters
                     DecodedKey::Unicode(character) => {
+                        // Check for Ctrl+C combination
+                        if ctrl_pressed && (character == 'c' || character == 'C') {
+                            println!("Ctrl+C detected! Exiting editor...");
+                            express_editor::exit_editor();
+                            continue;
+                        }
+
                         match character {
                             // Handle backspace (0x08) or delete (0x7F)
                             '\u{0008}' | '\u{007F}' => {
@@ -176,6 +186,12 @@ pub async fn print_keypresses() {
                     },
                     // Handle raw key codes
                     DecodedKey::RawKey(key) => {
+                        let editor_data = express_editor::EDITOR_DATA.lock();
+                        if ctrl_pressed && key == KeyCode::C && editor_data.active {
+                            express_editor::exit_editor();
+                            continue;
+                        }
+
                         match key {
                             // Handle backspace key
                             KeyCode::Backspace => {
@@ -198,21 +214,10 @@ pub async fn print_keypresses() {
                                 }
                             },
 
-                            KeyCode::C => {
-                                let express = express_editor::Data { active: true, text: "".to_string() };
-                                if ctrl_pressed && express.active {
-                                    express_editor::exit_editor();
-                                } else {
-                                    SHELL.lock().process_keypress('C');
-                                }
-                            },
                             // Modifier keys (no visible output)
-                            KeyCode::LShift => {},
-                            KeyCode::RShift => {},
-                            KeyCode::LControl => {},
-                            KeyCode::RControl => {},
-                            KeyCode::LAlt => {},
-                            KeyCode::RAltGr => {},
+                            KeyCode::LShift | KeyCode::RShift |
+                            KeyCode::LControl | KeyCode::RControl |
+                            KeyCode::LAlt | KeyCode::RAltGr => {},
                             
                             // Navigation keys (no visible output currently)
                             KeyCode::ArrowUp => {
@@ -239,9 +244,7 @@ pub async fn print_keypresses() {
                             KeyCode::PageDown => {},
                             KeyCode::CapsLock => {},
 
-                            _ => {
-                                
-                            },
+                            _ => {},
                         }
                     }
                 }
