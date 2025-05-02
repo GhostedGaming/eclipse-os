@@ -6,7 +6,7 @@
 
 ## Contributors ✨
 
-Thanks to these wonderful people ([emoji key](https://allcontributors.org/docs/en/emoji-key)):
+Thanks to these wonderful people 👀:
 
 <table>
   <tr>
