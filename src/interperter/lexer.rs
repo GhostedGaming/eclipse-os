@@ -113,6 +113,6 @@ fn lexer(src: &str) -> Result<(Vec<Tokens>, &str), (Vec<Tokens>, &str)> {
     }
 }
 
-fn add([left, right]: f64) -> f64 {
-    return left + right
+fn add(left: f64, right: f64) -> f64 {
+    return left + right;
 }

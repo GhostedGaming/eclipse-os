@@ -1,11 +1,12 @@
+use crate::shell::commands::express;
 // Import necessary modules and types
-use crate::{print, println, vga_buffer};
+use crate::{print, println, shell, vga_buffer};
 use crate::vga_buffer::WRITER;
 use alloc::string::{self, ToString};
 use conquer_once::spin::OnceCell;
 use time::Date;
 use crate::shell::Shell;
-use crate::text_editor::express_editor::Data;
+use crate::text_editor::express_editor::{self, Data};
 use alloc::sync::Arc;
 use spin::Mutex;
 use lazy_static::lazy_static;
@@ -127,6 +128,7 @@ pub async fn print_keypresses() {
 
     // Track shift key state
     let mut shift_pressed = false;
+    let mut ctrl_pressed = false;
 
     // Process scancodes as they arrive
     while let Some(scancode) = scancodes.next().await {
@@ -135,6 +137,9 @@ pub async fn print_keypresses() {
             // Update shift key state based on key event
             if let KeyCode::LShift | KeyCode::RShift = key_event.code {
                 shift_pressed = key_event.state == KeyState::Down;
+            }
+            if let KeyCode::LControl | KeyCode::RControl = key_event.code {
+                ctrl_pressed = key_event.state == KeyState::Down;
             }
             
             // Process the key event to get a decoded key
@@ -190,6 +195,15 @@ pub async fn print_keypresses() {
                                     SHELL.lock().process_keypress('|');
                                 } else {
                                     SHELL.lock().process_keypress('\\');
+                                }
+                            },
+
+                            KeyCode::C => {
+                                let express = express_editor::Data { active: true, text: "".to_string() };
+                                if ctrl_pressed && express.active {
+                                    express_editor::exit_editor();
+                                } else {
+                                    SHELL.lock().process_keypress('C');
                                 }
                             },
                             // Modifier keys (no visible output)

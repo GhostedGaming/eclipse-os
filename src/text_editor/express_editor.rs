@@ -4,6 +4,8 @@ extern crate alloc;
 use lazy_static::lazy_static;
 use spin::Mutex;
 use crate::fs;
+use crate::task::keyboard;
+use crate::alloc::string::ToString;
 
 /// A struct to represent editor data.
 pub struct Data {
@@ -18,14 +20,22 @@ lazy_static! {
     });
 }
 
-impl Data {
-    pub fn set_express_editor(&mut self, state: bool) {
-        self.active = state;
-    }
+pub fn test() {
+    // Set some initial text
+    EDITOR_DATA.lock().text = "hello world".to_string();
+
+    // Initialize the editor (this will process the text)
+    init_editor();
+
+    // Check the processed text
+    let processed_text = EDITOR_DATA.lock().text.clone();
+    println!("Processed Text: {}", processed_text);
 }
 
-pub fn set_editor_active(state: bool) {
-    EDITOR_DATA.lock().active = state;
+pub fn process_editor_text() {
+    let mut editor_data = EDITOR_DATA.lock();
+    let processed_text = text_processor(editor_data.text.clone());
+    editor_data.text = processed_text;
 }
 
 pub fn text_processor(text: String) -> String {
@@ -34,8 +44,16 @@ pub fn text_processor(text: String) -> String {
 
 pub fn init_editor() {
     println!("Welcome to the Text Editor!");
+    process_editor_text();
 }
 
 pub fn init_setup() {
     
+}
+
+pub fn exit_editor() {
+    if EDITOR_DATA.lock().active {
+        EDITOR_DATA.lock().active = false;
+        println!("Exiting editors...");
+    }
 }

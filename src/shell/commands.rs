@@ -65,10 +65,11 @@ pub fn help() {
     println!("  time     - Displays current time");
     println!("  version  - Display the current version of EclipseOS");
     println!("  express  - Activates the express text editor");
+    println!("  test     - Test the express text editor");
 }
 
-pub fn ls() {
-
+pub fn test() {
+    express_editor::test();
 }
 
 
