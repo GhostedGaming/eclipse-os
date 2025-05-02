@@ -4,6 +4,16 @@
 ![License](https://img.shields.io/badge/License-Apache_2.0-blue?style=flat-square)
 ![Contributions](https://img.shields.io/badge/Contributions-Welcome-brightgreen?style=flat-square)
 
+## Contributors ✨
+
+Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/docs/en/emoji-key)):
+
+<table>
+  <tr>
+    <td align="center"><a href="https://github.com/GhostedGaming"><img src="https://avatars.githubusercontent.com/u/180805056?v=4" width="100px;" alt=""/><br /><sub><b>GhostedGaming</b></sub></a><br />💻 🖋️</td>
+  </tr>
+</table>
+
 Eclipse OS is a **lightweight** operating system written in **Rust**, designed for performance and simplicity. Explore the world of operating system development with this beginner-friendly project! 🚀
 
 ---
