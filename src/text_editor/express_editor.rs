@@ -22,7 +22,9 @@ lazy_static! {
 
 pub fn test() {
     // Set some initial text
-    EDITOR_DATA.lock().text = "hello world".to_string();
+    EDITOR_DATA.lock().text = r"fn main() {
+        println!(Hello)
+    }".to_string();
 
     // Initialize the editor (this will process the text)
     init_editor();
@@ -53,7 +55,6 @@ pub fn init_setup() {
 }
 
 pub fn exit_editor() {
-    println!("Exiting editors...");
     if EDITOR_DATA.lock().active {
         EDITOR_DATA.lock().active = false;
         println!("Exiting editors...");
