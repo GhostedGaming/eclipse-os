@@ -93,3 +93,10 @@ pub fn time() {
 pub fn version() {
     println!("EclipseOS v0.1.0");
 }
+
+pub fn halt() {
+    println!("System halted.");
+    loop {
+        x86_64::instructions::hlt();
+    }
+}
