@@ -3,6 +3,7 @@
 ![Rust](https://img.shields.io/badge/Rust-🦀-orange?style=flat-square)
 ![License](https://img.shields.io/badge/License-Apache_2.0-blue?style=flat-square)
 ![Contributions](https://img.shields.io/badge/Contributions-Welcome-brightgreen?style=flat-square)
+[![Discord](https://img.shields.io/badge/Discord-7289DA?logo=discord&logoColor=white)](https://discord.com)
 
 ## Contributors ✨
 
