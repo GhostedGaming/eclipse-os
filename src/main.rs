@@ -6,13 +6,13 @@
 
 extern crate alloc;
 
+use alloc::format;
 use eclipse_os::{println, print};
 use eclipse_os::task::{Task, executor::Executor, keyboard};
 use bootloader::{BootInfo, entry_point};
 use core::panic::PanicInfo;
 use eclipse_os::vga_buffer::{self, Color};
 use eclipse_os::time;
-use alloc::format;
 
 entry_point!(kernel_main);
 
@@ -23,32 +23,27 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
     eclipse_os::init();
 
+    // Initialize memory management
     let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
     let mut mapper = unsafe { memory::init(phys_mem_offset) };
     let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
 
-    // Initialize heap and print status
-    let heap_success = match allocator::init_heap(&mut mapper, &mut frame_allocator) {
-        Ok(_) => true,
-        Err(_) => false,
-    };
-    print_status("allocator_init_heap", heap_success);
+    // Initialize heap and check status
+    print_status("Heap Initialization", allocator::init_heap(&mut mapper, &mut frame_allocator).map_err(|_| ()));
 
-    // Print status for Panic Handler
-    // We can't really test the panic handler directly, so we just assume it's set up correctly
-    print_status("Panic_Handler", true);
+    // Check Panic Handler (assumed to be set up correctly)
+    print_status("Panic Handler Setup", Ok(()));
 
-    // Perform trivial assertion and print status
-    let trivial_success = trivial_assertion();
-    print_status("trivial_assertion", trivial_success);
+    // Perform trivial assertion
+    print_status("Trivial Assertion", trivial_assertion());
 
-    // Initialize time and print status
-    let time_success = initiate_time();
-    print_status("time_init", time_success);
+    // Initialize time
+    print_status("Time Initialization", initiate_time());
 
     #[cfg(test)]
     test_main();
 
+    // Initialize and run the executor
     let mut executor = Executor::new();
     executor.spawn(Task::new(example_task()));
     executor.spawn(Task::new(keyboard::print_keypresses()));
@@ -57,32 +52,37 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 }
 
 /// Helper function to print status messages with consistent formatting
-fn print_status(component: &str, success: bool) {
+fn print_status(component: &str, result: Result<(), ()>) {
     print!("{} [", component);
-    
-    if success {
-        vga_buffer::set_color(Color::Green, Color::Black);
-        print!("OK");
-    } else {
-        vga_buffer::set_color(Color::Red, Color::Black);
-        print!("FAIL");
+
+    match result {
+        Ok(_) => {
+            vga_buffer::set_color(Color::Green, Color::Black);
+            print!("OK");
+        }
+        Err(_) => {
+            vga_buffer::set_color(Color::Red, Color::Black);
+            print!("FAIL");
+        }
     }
-    
+
     vga_buffer::set_color(Color::White, Color::Black);
     print!("]\n");
 }
 
 /// Perform trivial assertion and return success status
-fn trivial_assertion() -> bool {
-    // This is a simple check that should always pass
-    // In a real system, you might have more complex checks
-    1 == 1
+fn trivial_assertion() -> Result<(), ()> {
+    if 1 == 1 {
+        Ok(())
+    } else {
+        Err(())
+    }
 }
 
 /// Initiate time and return success status
-fn initiate_time() -> bool {
+fn initiate_time() -> Result<(), ()> {
     time::init();
-    true
+    Ok(())
 }
 
 #[cfg(not(test))]
@@ -105,13 +105,12 @@ async fn async_number() -> u32 {
 async fn example_task() {
     let number = async_number().await;
     let success = number == 42;
-    print_status(&format!("async_number [{}]", number), success);
+    print_status(&format!("Async Number [{}]", number), if success { Ok(()) } else { Err(()) });
     print_ascii();
 }
 
 fn print_ascii() {
     vga_buffer::set_color(Color::Purple, Color::Black);
-    vga_buffer::set_color(Color::Cyan, Color::Black);
     println!("");
     println!("      --ECLIPSE OS--     ");
     println!("");
