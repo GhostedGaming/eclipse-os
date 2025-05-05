@@ -1,118 +1,98 @@
+#![no_std]
 extern crate alloc;
+
 use alloc::vec::Vec;
-use crate::println;
+use alloc::string::{String, ToString};
 
 #[derive(Debug, PartialEq)]
 pub enum Tokens {
-    // Components
     Let,
     Fn,
     Identifier(String),
     Number(f64),
-    String(String),
     Plus,
     Minus,
     Multiply,
     Divide,
-    Equals,
-    OpenParan,
-    CloseParan,
-    OpenBrace,
-    CloseBrace,
-    Semicolon,
-    Colon,
-    Comma,
     EOF,
-
-    // Statements
-    If,
-    Else,
-    While,
-    For,
-    Break,
-    Continue,
-    Struct,
-    Enum,
-    Mut,
-
-    // Operators
-    EqualsEquals,
-    NotEquals,
-    GreaterThan,
-    LessThan,
-    GreaterEquals,
-    LessEquals,
-    And,
-    Or,
-    Not,
-    PlusEquals,
-    MinusEquals,
-    MultiplyEquals,
-    DivideEquals,
-
-    // Misc
-    OpenBracket,
-    CloseBracket,
-
-    Dot,
 }
 
-const example1: &str = "
-    fn main() {
-        let var1 = 1;
-        let var2 = 2;
-
-        print(\"{}\" var1+var2)
-    }
-";
-
-fn lexer(src: &str) -> Result<(Vec<Tokens>, &str), (Vec<Tokens>, &str)> {
-    let mut src_bytes = src.as_bytes();
+fn lexer(src: &str) -> Vec<Tokens> {
     let mut tokens = Vec::new();
+    let mut chars = src.chars().peekable();
 
-    'tokenizing:loop {
-        src_bytes = match src_bytes {
-            [b'f',b'n', b' ', rest@..] => {
-                tokens.push(Tokens::Fn);
-                rest
+    while let Some(ch) = chars.next() {
+        match ch {
+            ' ' | '\n' | '\t' => {
+                // Skip whitespace
             }
-            [b'/',b'/', rest@..] => {
-                let mut rest = rest;
-                'ignoring_comment:loop {
-                    let [first, rest1@..] = rest else {
-                        break 'tokenizing
-                    };
-
-                    rest = rest1;
-
-                    if first == b'\n' {
-                        continue 'tokenizing
+            '+' => tokens.push(Tokens::Plus),
+            '-' => tokens.push(Tokens::Minus),
+            '*' => tokens.push(Tokens::Multiply),
+            '/' => tokens.push(Tokens::Divide),
+            '0'..='9' => {
+                // Parse numbers
+                let mut number = ch.to_string();
+                while let Some(next_ch) = chars.peek() {
+                    if next_ch.is_numeric() || *next_ch == '.' {
+                        number.push(chars.next().unwrap());
                     } else {
-                        continue 'ignoring_comment
+                        break;
                     }
                 }
+                tokens.push(Tokens::Number(number.parse().unwrap()));
             }
-            [b'+'] => {
-                tokens.push(Tokens::Plus);
-                println!("{}", add());
-                rest
+            'a'..='z' | 'A'..='Z' => {
+                // Parse identifiers or keywords
+                let mut identifier = ch.to_string();
+                while let Some(next_ch) = chars.peek() {
+                    if next_ch.is_alphanumeric() || *next_ch == '_' {
+                        identifier.push(chars.next().unwrap());
+                    } else {
+                        break;
+                    }
+                }
+                match identifier.as_str() {
+                    "let" => tokens.push(Tokens::Let),
+                    "fn" => tokens.push(Tokens::Fn),
+                    _ => tokens.push(Tokens::Identifier(identifier)),
+                }
             }
-            [b'-'] => {
-                tokens.push(Tokens::Minus);
-                rest
-            }
-            [b'/'] => {
-                tokens.push(Tokens::Divide);
-                rest
-            }
-            [b'*'] => {
-                tokens.push(Tokens::Multiply);
-                rest
+            _ => {
+                // Handle unexpected characters
             }
         }
     }
+
+    tokens.push(Tokens::EOF);
+    tokens
 }
 
 fn add(left: f64, right: f64) -> f64 {
-    return left + right;
+    left + right
+}
+
+fn run_example() {
+    let input = "1 + 2";
+    let tokens = lexer(input);
+
+    // Simulate addition
+    let mut iter = tokens.into_iter();
+    let left = match iter.next() {
+        Some(Tokens::Number(value)) => value,
+        _ => panic!("Expected a number"),
+    };
+
+    let operator = iter.next();
+    if operator != Some(Tokens::Plus) {
+        panic!("Expected a '+' operator");
+    }
+
+    let right = match iter.next() {
+        Some(Tokens::Number(value)) => value,
+        _ => panic!("Expected a number"),
+    };
+
+    let result = add(left, right);
+    println!("Result: {}", result);
 }
