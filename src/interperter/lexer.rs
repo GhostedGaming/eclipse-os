@@ -3,6 +3,7 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 use alloc::string::{String, ToString};
+use crate::text_editor::express_editor::test;
 
 #[derive(Debug, PartialEq)]
 pub enum Tokens {
@@ -69,11 +70,27 @@ fn lexer(src: &str) -> Vec<Tokens> {
 }
 
 fn add(left: f64, right: f64) -> f64 {
-    left + right
+    return left + right
+}
+
+fn substract(left: f64, right: f64) -> f64 {
+    return left - right
+}
+
+fn multiply(left: f64, right: f64) -> f64 {
+    return left * right
+}
+
+fn divide(left: f64, right: f64) -> f64 {
+    if right == 0.0 {
+        panic!("Error connot divide by zero!");
+    } else {
+        return left / right
+    }
 }
 
 fn run_example() {
-    let input = "1 + 2";
+    let input = test();
     let tokens = lexer(input);
 
     // Simulate addition

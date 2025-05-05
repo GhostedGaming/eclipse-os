@@ -20,11 +20,10 @@ lazy_static! {
     });
 }
 
-pub fn test() {
+pub fn test() -> String {
     // Set some initial text
-    EDITOR_DATA.lock().text = r"fn main() {
-        println!(Hello)
-    }".to_string();
+    EDITOR_DATA.lock().text = 
+    r"1+1".to_string();
 
     // Initialize the editor (this will process the text)
     init_editor();
@@ -32,12 +31,7 @@ pub fn test() {
     // Check the processed text
     let processed_text = EDITOR_DATA.lock().text.clone();
     println!("Processed Text: {}", processed_text);
-}
-
-pub fn process_editor_text() {
-    let mut editor_data = EDITOR_DATA.lock();
-    let processed_text = text_processor(editor_data.text.clone());
-    editor_data.text = processed_text;
+    return EDITOR_DATA.lock().text.to_string();
 }
 
 pub fn text_processor(text: String) -> String {
