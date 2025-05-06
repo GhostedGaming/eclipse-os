@@ -74,6 +74,7 @@ dependencies = [
  "crossbeam-queue",
  "futures-util",
  "lazy_static",
+ "libm",
  "linked_list_allocator",
  "pc-keyboard",
  "pic8259",
@@ -117,6 +118,12 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 dependencies = [
  "spin",
 ]
+
+[[package]]
+name = "libm"
+version = "0.2.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a25169bd5913a4b437588a7e3d127cd6e90127b60e0ffbd834a38f1599e016b8"
 
 [[package]]
 name = "linked_list_allocator"

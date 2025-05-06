@@ -1,5 +1,6 @@
 #![no_std]
 extern crate alloc;
+extern crate libm;
 
 use alloc::vec::Vec;
 use alloc::string::{String, ToString};
@@ -16,6 +17,7 @@ pub enum Tokens {
     Minus,
     Multiply,
     Divide,
+    Power,
     EOF,
 }
 
@@ -32,6 +34,7 @@ fn lexer(src: &str) -> Vec<Tokens> {
             '-' => tokens.push(Tokens::Minus),
             '*' => tokens.push(Tokens::Multiply),
             '/' => tokens.push(Tokens::Divide),
+            '^' => tokens.push(Tokens::Power),
             '0'..='9' => {
                 // Parse numbers
                 let mut number = ch.to_string();
@@ -83,34 +86,56 @@ fn multiply(left: f64, right: f64) -> f64 {
 }
 
 fn divide(left: f64, right: f64) -> f64 {
-    if right == 0.0 {
+    if right == 0.0 || right == -0.0 || right == f64::INFINITY || right == f64::NEG_INFINITY {
         panic!("Error connot divide by zero!");
     } else {
         return left / right
     }
 }
 
+fn power(left: f64, right: f64) -> f64 {
+    return libm::pow(left, right);
+}
+
 pub fn run_example() {
+    let mut result: f64 = 0.0;
     let input = test();
     let tokens = lexer(&input);
-
-    // Simulate addition
+    
+    // Simulate calculation with proper order
     let mut iter = tokens.into_iter();
+    
+    // Get the left operand
     let left = match iter.next() {
         Some(Tokens::Number(value)) => value,
-        _ => panic!("Expected a number"),
+        _ => panic!("Expected a number for left operand"),
     };
-
-    let operator = iter.next();
-    if operator != Some(Tokens::Plus) {
-        panic!("Expected a '+' operator");
-    }
-
+    
+    // Get the operator
+    let operator = match iter.next() {
+        Some(op @ Tokens::Plus) => op,
+        Some(op @ Tokens::Minus) => op,
+        Some(op @ Tokens::Multiply) => op,
+        Some(op @ Tokens::Divide) => op,
+        Some(op @ Tokens::Power) => op,
+        _ => panic!("Expected an operator (+, -, *, /)"),
+    };
+    
+    // Get the right operand
     let right = match iter.next() {
         Some(Tokens::Number(value)) => value,
-        _ => panic!("Expected a number"),
+        _ => panic!("Expected a number for right operand"),
     };
-
-    let result = add(left, right);
+    
+    // Perform the calculation based on the operator
+    result = match operator {
+        Tokens::Plus => add(left, right),
+        Tokens::Minus => substract(left, right),
+        Tokens::Multiply => multiply(left, right),
+        Tokens::Divide => divide(left, right),
+        Tokens::Power => power(left, right),
+        _ => unreachable!(), // We've already checked for valid operators
+    };
+    
     println!("Result: {}", result);
 }
