@@ -4,6 +4,7 @@ extern crate alloc;
 use alloc::vec::Vec;
 use alloc::string::{String, ToString};
 use crate::text_editor::express_editor::test;
+use crate::println;
 
 #[derive(Debug, PartialEq)]
 pub enum Tokens {
@@ -89,9 +90,9 @@ fn divide(left: f64, right: f64) -> f64 {
     }
 }
 
-fn run_example() {
+pub fn run_example() {
     let input = test();
-    let tokens = lexer(input);
+    let tokens = lexer(&input);
 
     // Simulate addition
     let mut iter = tokens.into_iter();

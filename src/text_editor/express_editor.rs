@@ -23,7 +23,7 @@ lazy_static! {
 pub fn test() -> String {
     // Set some initial text
     EDITOR_DATA.lock().text = 
-    r"1+1".to_string();
+    r"205+255".to_string();
 
     // Initialize the editor (this will process the text)
     init_editor();
