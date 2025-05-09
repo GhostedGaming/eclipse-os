@@ -21,16 +21,21 @@ lazy_static! {
 }
 
 pub fn test() -> String {
-    // Set some initial text
-    EDITOR_DATA.lock().text = 
-    r"10^2".to_string();
+    // Set a simpler example to debug
+    EDITOR_DATA.lock().text = r#"
+// Simple arithmetic
+2 + 3 * 4
 
-    // Initialize the editor (this will process the text)
+// Variable assignment
+x = 10
+y = 5
+x + y
+"#.to_string();
+
+    // Initialize the editor
     init_editor();
 
-    // Check the processed text
-    let processed_text = EDITOR_DATA.lock().text.clone();
-    println!("Processed Text: {}", processed_text);
+    // Return the text for the interpreter to process
     return EDITOR_DATA.lock().text.to_string();
 }
 
@@ -49,8 +54,11 @@ pub fn init_setup() {
 }
 
 pub fn exit_editor() {
-    if EDITOR_DATA.lock().active {
-        EDITOR_DATA.lock().active = false;
+    let mut editor_data = EDITOR_DATA.lock();
+
+    if editor_data.active {
+        println!("Condition is true, setting active to false");
+        editor_data.active = false;
         println!("Exiting editors...");
     }
 }

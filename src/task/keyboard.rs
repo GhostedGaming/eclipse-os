@@ -152,7 +152,6 @@ pub async fn print_keypresses() {
                     DecodedKey::Unicode(character) => {
                         // Check for Ctrl+C combination
                         if ctrl_pressed && (character == 'c' || character == 'C') {
-                            println!("Ctrl+C detected! Exiting editor...");
                             express_editor::exit_editor();
                             continue;
                         }
