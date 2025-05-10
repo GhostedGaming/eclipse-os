@@ -199,11 +199,9 @@ fn multiply(left: f64, right: f64) -> f64 {
 
 fn divide(left: f64, right: f64) -> f64 {
     if right == 0.0 || right == -0.0 {
-        println!("Error: Cannot divide by zero! Returning infinity.");
-        return f64::INFINITY; // Return infinity instead of panicking
+        panic!("Cannot divide by 0");
     } else if right == f64::INFINITY || right == f64::NEG_INFINITY {
-        println!("Error: Cannot divide by infinity! Returning zero.");
-        return 0.0; // Return zero for division by infinity
+        panic!("Cannot divide by infinity");
     } else {
         left / right
     }
