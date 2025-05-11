@@ -21,18 +21,17 @@ lazy_static! {
 pub fn test() -> String {
     // Set a simpler example to debug
     EDITOR_DATA.lock().text = r#"
-// Simple arithmetic
-2 + 3 * 4
 // Variable assignment
 x = 10
 y = 5
 x + y
-println("Hello world!")
+
 // If statement example
-if x > y println("Hello, world!") else println("Bye, world!")
-// Another if statement
-z = 15
-if z == 15 z * 2 else z / 2
+if x == y {
+    println("Hello, world!")
+} else {
+    println("Bye, world!")
+}
 "#
 .to_string();
     

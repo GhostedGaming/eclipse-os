@@ -518,7 +518,7 @@ impl Parser {
 
             // Check for opening parenthesis
             if !matches!(self.advance(), Tokens::LeftParen) {
-                println!("Expected '(' after 'print'");
+                println!("Expected '(' after 'println'");
                 return 0.0;
             }
 
@@ -533,52 +533,225 @@ impl Parser {
                 _ => {
                     // For expressions, evaluate and print the result
                     let result = self.expression();
-                    print!("{}", result);
+                    println!("{}", result);
                     result
                 }
             };
 
             // Check for closing parenthesis
             if !matches!(self.advance(), Tokens::RightParen) {
-                println!("Expected ')' after print argument");
+                println!("Expected ')' after println argument");
             }
 
             return value;
         }
 
-        // Check if this is an if statement
+        // If statement handling
         if matches!(self.peek(0), Tokens::If) {
             self.advance(); // consume 'if'
 
             // Parse condition
             let condition = self.expression();
 
-            // Parse then block - use statement instead of expression
-            let then_result = self.statement();
+            // Expect opening brace for then block
+            if !matches!(self.advance(), Tokens::LeftBrace) {
+                println!("Expected '{{' after if condition");
+                return 0.0;
+            }
+
+            // Parse then block
+            let mut then_result = 0.0;
+            if condition != 0.0 {
+                // Only execute the then block if condition is true
+                then_result = self.block();
+            } else {
+                // Skip the then block
+                self.skip_block();
+            }
 
             // Check for else
             if matches!(self.peek(0), Tokens::Else) {
                 self.advance(); // consume 'else'
-                // Parse else block - use statement instead of expression
-                let else_result = self.statement();
 
-                // Return the appropriate result based on condition
-                if condition != 0.0 {
-                    return then_result;
+                // Expect opening brace for else block
+                if !matches!(self.advance(), Tokens::LeftBrace) {
+                    println!("Expected '{{' after else");
+                    return 0.0;
+                }
+
+                // Parse else block
+                if condition == 0.0 {
+                    // Only execute the else block if condition is false
+                    return self.block();
                 } else {
-                    return else_result;
+                    // Skip the else block
+                    self.skip_block();
+                    return then_result;
                 }
             }
 
-            // No else, just return the result if condition is true
-            if condition != 0.0 {
-                return then_result;
+            return then_result;
+        }
+
+        // While loop handling
+        if matches!(self.peek(0), Tokens::While) {
+            self.advance(); // consume 'while'
+
+            // Save the position of the condition
+            let condition_pos = self.current;
+
+            // Parse condition
+            let mut condition = self.expression();
+
+            // Expect opening brace for loop body
+            if !matches!(self.advance(), Tokens::LeftBrace) {
+                println!("Expected '{{' after while condition");
+                return 0.0;
             }
+
+            // Save the position of the loop body
+            let body_pos = self.current;
+
+            let mut last_value = 0.0;
+
+            // Execute the loop as long as the condition is true
+            while condition != 0.0 {
+                // Execute the loop body
+                last_value = self.block();
+
+                // Go back to the condition
+                self.current = condition_pos;
+
+                // Re-evaluate the condition
+                condition = self.expression();
+
+                // Skip the opening brace
+                self.advance();
+
+                // Reset to the beginning of the loop body
+                self.current = body_pos;
+            }
+
+            // Skip the loop body since the condition is now false
+            self.skip_block();
+
+            return last_value;
+        }
+
+        // Variable declaration
+        if matches!(self.peek(0), Tokens::Let) {
+            self.advance(); // consume 'let'
+
+            // Expect an identifier
+            let var_name = match self.peek(0) {
+                Tokens::Identifier(name) => name.clone(),
+                _ => {
+                    println!("Expected identifier after 'let'");
+                    return 0.0;
+                }
+            };
+            self.advance(); // consume identifier
+
+            // Expect an assignment
+            if !matches!(self.peek(0), Tokens::Assign) {
+                println!("Expected '=' after variable name");
+                return 0.0;
+            }
+            self.advance(); // consume '='
+
+            // Parse the expression
+            let value = self.expression();
+
+            // Store the variable
+            GLOBAL_ENV.lock().set(var_name, value);
+
+            // Expect a semicolon
+            if !matches!(self.peek(0), Tokens::Semicolon) {
+                println!("Expected ';' after variable declaration");
+            } else {
+                self.advance(); // consume ';'
+            }
+
+            return value;
+        }
+
+        // Function declaration
+        if matches!(self.peek(0), Tokens::Fn) {
+            self.advance(); // consume 'fn'
+
+            // For now, just skip function declarations
+            // In a real implementation, you would parse the function name, parameters, and body
+            // and store them for later execution
+
+            // Skip until we find a closing brace
+            let mut brace_count = 0;
+            while !self.is_at_end() {
+                match self.peek(0) {
+                    Tokens::LeftBrace => brace_count += 1,
+                    Tokens::RightBrace => {
+                        brace_count -= 1;
+                        if brace_count == 0 {
+                            self.advance(); // consume the closing brace
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+                self.advance();
+            }
+
             return 0.0;
         }
 
-        // Not an if statement, parse as normal expression
-        self.expression()
+        // Not a special statement, parse as normal expression
+        let result = self.expression();
+
+        // Consume any trailing semicolon
+        if matches!(self.peek(0), Tokens::Semicolon) {
+            self.advance();
+        }
+
+        result
+    }
+
+    // Helper methods for block handling
+    fn block(&mut self) -> f64 {
+        let mut last_value = 0.0;
+        let mut brace_count = 1; // We've already consumed the opening brace
+
+        while brace_count > 0 && !self.is_at_end() {
+            if matches!(self.peek(0), Tokens::LeftBrace) {
+                brace_count += 1;
+            } else if matches!(self.peek(0), Tokens::RightBrace) {
+                brace_count -= 1;
+                if brace_count == 0 {
+                    self.advance(); // consume the closing brace
+                    break;
+                }
+            }
+
+            last_value = self.statement();
+        }
+
+        last_value
+    }
+
+    fn skip_block(&mut self) {
+        let mut brace_count = 1; // We've already consumed the opening brace
+
+        while brace_count > 0 && !self.is_at_end() {
+            if matches!(self.peek(0), Tokens::LeftBrace) {
+                brace_count += 1;
+            } else if matches!(self.peek(0), Tokens::RightBrace) {
+                brace_count -= 1;
+                if brace_count == 0 {
+                    self.advance(); // consume the closing brace
+                    break;
+                }
+            }
+
+            self.advance(); // Skip this token
+        }
     }
 }
 
@@ -589,20 +762,57 @@ pub fn run_example() {
     // Reset the global environment
     *GLOBAL_ENV.lock() = Environment::new();
 
+    // Process the entire input as a single block of code
+    let mut code_blocks: Vec<String> = Vec::new();
+    let mut current_block = String::new();
+    let mut brace_count = 0;
+
     // Split the input into lines
     let lines: Vec<&str> = input.lines().collect();
 
     for line in lines {
-        // Skip empty lines and comments
         let trimmed = line.trim();
         if trimmed.is_empty() || trimmed.starts_with("//") {
             continue;
         }
 
-        println!("Evaluating: {}", trimmed);
+        // Count braces to track code blocks
+        for ch in trimmed.chars() {
+            if ch == '{' {
+                brace_count += 1;
+            } else if ch == '}' {
+                brace_count -= 1;
+            }
+        }
 
-        // Tokenize and parse each line
-        let tokens = lexer(trimmed);
+        if !current_block.is_empty() {
+            current_block.push(' ');
+        }
+        current_block.push_str(trimmed);
+
+        // If we're not inside a block or we've completed a block, evaluate it
+        if brace_count == 0 && !current_block.is_empty() {
+            if current_block.ends_with(';')
+                || current_block.ends_with('}')
+                || !current_block.contains('{')
+            {
+                code_blocks.push(current_block.clone());
+                current_block.clear();
+            }
+        }
+    }
+
+    // Add any remaining code
+    if !current_block.is_empty() {
+        code_blocks.push(current_block);
+    }
+
+    // Evaluate each code block
+    for block in code_blocks {
+        println!("Evaluating: {}", block);
+
+        // Tokenize and parse the block
+        let tokens = lexer(&block);
 
         let mut parser = Parser::new(tokens);
         let result = parser.parse();
