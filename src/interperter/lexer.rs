@@ -1,16 +1,18 @@
 extern crate alloc;
 extern crate libm;
 
-use alloc::vec::Vec;
-use alloc::string::{String, ToString};
-use alloc::collections::BTreeMap;
 use crate::text_editor::express_editor::test;
+use crate::{print, println};
+use alloc::collections::BTreeMap;
+use alloc::string::{self, String, ToString};
+use alloc::vec::Vec;
 use lazy_static::lazy_static;
 use spin::Mutex;
-use crate::println;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Tokens {
+    Print,
+    Println,
     Let,
     Fn,
     If,
@@ -170,6 +172,8 @@ fn lexer(src: &str) -> Vec<Tokens> {
                     "return" => tokens.push(Tokens::Return),
                     "true" => tokens.push(Tokens::True),
                     "false" => tokens.push(Tokens::False),
+                    "print" => tokens.push(Tokens::Print),
+                    "println" => tokens.push(Tokens::Println),
                     _ => tokens.push(Tokens::Identifier(identifier)),
                 }
             }
@@ -183,7 +187,6 @@ fn lexer(src: &str) -> Vec<Tokens> {
     tokens.push(Tokens::EOF);
     tokens
 }
-
 // Basic operations
 fn add(left: f64, right: f64) -> f64 {
     left + right
@@ -268,14 +271,11 @@ struct Parser {
 
 impl Parser {
     fn new(tokens: Vec<Tokens>) -> Self {
-        Parser {
-            tokens,
-            current: 0,
-        }
+        Parser { tokens, current: 0 }
     }
 
     fn parse(&mut self) -> f64 {
-        self.expression()
+        self.statement()
     }
 
     fn expression(&mut self) -> f64 {
@@ -290,29 +290,69 @@ impl Parser {
                 return value;
             }
         }
-        
+
         self.comparison()
     }
 
     fn comparison(&mut self) -> f64 {
         let mut expr = self.term();
 
-        while matches!(self.peek(0), 
-            Tokens::Equal | Tokens::NotEqual | 
-            Tokens::LessThan | Tokens::GreaterThan | 
-            Tokens::LessThanEqual | Tokens::GreaterThanEqual) {
-            
+        while matches!(
+            self.peek(0),
+            Tokens::Equal
+                | Tokens::NotEqual
+                | Tokens::LessThan
+                | Tokens::GreaterThan
+                | Tokens::LessThanEqual
+                | Tokens::GreaterThanEqual
+        ) {
             let operator = self.advance().clone();
             let right = self.term();
-            
+
             // For comparison operators, we return 1.0 for true and 0.0 for false
             expr = match operator {
-                Tokens::Equal => if equals(expr, right) { 1.0 } else { 0.0 },
-                Tokens::NotEqual => if not_equals(expr, right) { 1.0 } else { 0.0 },
-                Tokens::LessThan => if less_than(expr, right) { 1.0 } else { 0.0 },
-                Tokens::GreaterThan => if greater_than(expr, right) { 1.0 } else { 0.0 },
-                Tokens::LessThanEqual => if less_than_equal(expr, right) { 1.0 } else { 0.0 },
-                Tokens::GreaterThanEqual => if greater_than_equal(expr, right) { 1.0 } else { 0.0 },
+                Tokens::Equal => {
+                    if equals(expr, right) {
+                        1.0
+                    } else {
+                        0.0
+                    }
+                }
+                Tokens::NotEqual => {
+                    if not_equals(expr, right) {
+                        1.0
+                    } else {
+                        0.0
+                    }
+                }
+                Tokens::LessThan => {
+                    if less_than(expr, right) {
+                        1.0
+                    } else {
+                        0.0
+                    }
+                }
+                Tokens::GreaterThan => {
+                    if greater_than(expr, right) {
+                        1.0
+                    } else {
+                        0.0
+                    }
+                }
+                Tokens::LessThanEqual => {
+                    if less_than_equal(expr, right) {
+                        1.0
+                    } else {
+                        0.0
+                    }
+                }
+                Tokens::GreaterThanEqual => {
+                    if greater_than_equal(expr, right) {
+                        1.0
+                    } else {
+                        0.0
+                    }
+                }
                 _ => unreachable!(),
             };
         }
@@ -326,7 +366,7 @@ impl Parser {
         while matches!(self.peek(0), Tokens::Plus | Tokens::Minus) {
             let operator = self.advance().clone();
             let right = self.factor();
-            
+
             expr = match operator {
                 Tokens::Plus => add(expr, right),
                 Tokens::Minus => subtract(expr, right),
@@ -343,7 +383,7 @@ impl Parser {
         while matches!(self.peek(0), Tokens::Multiply | Tokens::Divide) {
             let operator = self.advance().clone();
             let right = self.exponent();
-            
+
             expr = match operator {
                 Tokens::Multiply => multiply(expr, right),
                 Tokens::Divide => divide(expr, right),
@@ -370,10 +410,16 @@ impl Parser {
         if matches!(self.peek(0), Tokens::Minus | Tokens::Not) {
             let operator = self.advance().clone();
             let right = self.unary();
-            
+
             return match operator {
                 Tokens::Minus => -right,
-                Tokens::Not => if right == 0.0 { 1.0 } else { 0.0 },
+                Tokens::Not => {
+                    if right == 0.0 {
+                        1.0
+                    } else {
+                        0.0
+                    }
+                }
                 _ => unreachable!(),
             };
         }
@@ -383,16 +429,14 @@ impl Parser {
 
     fn primary(&mut self) -> f64 {
         let token = self.advance().clone();
-        
+
         match token {
             Tokens::Number(value) => value,
-            Tokens::Identifier(name) => {
-                match GLOBAL_ENV.lock().get(&name) {
-                    Some(value) => value,
-                    None => {
-                        println!("Undefined variable: {}", name);
-                        0.0
-                    }
+            Tokens::Identifier(name) => match GLOBAL_ENV.lock().get(&name) {
+                Some(value) => value,
+                None => {
+                    println!("Undefined variable: {}", name);
+                    0.0
                 }
             },
             Tokens::LeftParen => {
@@ -401,7 +445,7 @@ impl Parser {
                     println!("Expected closing parenthesis");
                 }
                 expr
-            },
+            }
             Tokens::True => 1.0,
             Tokens::False => 0.0,
             _ => {
@@ -434,34 +478,136 @@ impl Parser {
     fn previous(&self) -> &Tokens {
         &self.tokens[self.current - 1]
     }
+
+    fn statement(&mut self) -> f64 {
+        if matches!(self.peek(0), Tokens::Print) {
+            self.advance(); // consume 'print'
+
+            // Check for opening parenthesis
+            if !matches!(self.advance(), Tokens::LeftParen) {
+                println!("Expected '(' after 'print'");
+                return 0.0;
+            }
+
+            // Parse the expression or string to print
+            let value = match self.peek(0) {
+                Tokens::String(s) => {
+                    let string_to_print = s.clone();
+                    self.advance(); // consume the string
+                    print!("{}", string_to_print);
+                    0.0 // Return value doesn't matter for print
+                }
+                _ => {
+                    // For expressions, evaluate and print the result
+                    let result = self.expression();
+                    print!("{}", result);
+                    result
+                }
+            };
+
+            // Check for closing parenthesis
+            if !matches!(self.advance(), Tokens::RightParen) {
+                println!("Expected ')' after print argument");
+            }
+
+            return value;
+        }
+
+        if matches!(self.peek(0), Tokens::Println) {
+            self.advance(); // consume 'println'
+
+            // Check for opening parenthesis
+            if !matches!(self.advance(), Tokens::LeftParen) {
+                println!("Expected '(' after 'print'");
+                return 0.0;
+            }
+
+            // Parse the expression or string to print
+            let value = match self.peek(0) {
+                Tokens::String(s) => {
+                    let string_to_print = s.clone();
+                    self.advance(); // consume the string
+                    println!("{}", string_to_print);
+                    0.0 // Return value doesn't matter for print
+                }
+                _ => {
+                    // For expressions, evaluate and print the result
+                    let result = self.expression();
+                    print!("{}", result);
+                    result
+                }
+            };
+
+            // Check for closing parenthesis
+            if !matches!(self.advance(), Tokens::RightParen) {
+                println!("Expected ')' after print argument");
+            }
+
+            return value;
+        }
+
+        // Check if this is an if statement
+        if matches!(self.peek(0), Tokens::If) {
+            self.advance(); // consume 'if'
+
+            // Parse condition
+            let condition = self.expression();
+
+            // Parse then block - use statement instead of expression
+            let then_result = self.statement();
+
+            // Check for else
+            if matches!(self.peek(0), Tokens::Else) {
+                self.advance(); // consume 'else'
+                // Parse else block - use statement instead of expression
+                let else_result = self.statement();
+
+                // Return the appropriate result based on condition
+                if condition != 0.0 {
+                    return then_result;
+                } else {
+                    return else_result;
+                }
+            }
+
+            // No else, just return the result if condition is true
+            if condition != 0.0 {
+                return then_result;
+            }
+            return 0.0;
+        }
+
+        // Not an if statement, parse as normal expression
+        self.expression()
+    }
 }
 
 pub fn run_example() {
     let input = test();
     println!("Input:\n{}", input);
-    
+
     // Reset the global environment
     *GLOBAL_ENV.lock() = Environment::new();
-    
+
     // Split the input into lines
     let lines: Vec<&str> = input.lines().collect();
-    
+
     for line in lines {
         // Skip empty lines and comments
         let trimmed = line.trim();
         if trimmed.is_empty() || trimmed.starts_with("//") {
             continue;
         }
-        
+
         println!("Evaluating: {}", trimmed);
-        
+
         // Tokenize and parse each line
         let tokens = lexer(trimmed);
-        
+
         let mut parser = Parser::new(tokens);
         let result = parser.parse();
         println!("Result: {}", result);
-        
+
         println!("---");
     }
 }

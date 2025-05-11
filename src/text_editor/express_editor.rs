@@ -3,8 +3,6 @@ use crate::println;
 extern crate alloc;
 use lazy_static::lazy_static;
 use spin::Mutex;
-use crate::fs;
-use crate::task::keyboard;
 use crate::alloc::string::ToString;
 
 /// A struct to represent editor data.
@@ -25,16 +23,22 @@ pub fn test() -> String {
     EDITOR_DATA.lock().text = r#"
 // Simple arithmetic
 2 + 3 * 4
-
 // Variable assignment
 x = 10
 y = 5
 x + y
-"#.to_string();
-
+println("Hello world!")
+// If statement example
+if x > y println("Hello, world!") else println("Bye, world!")
+// Another if statement
+z = 15
+if z == 15 z * 2 else z / 2
+"#
+.to_string();
+    
     // Initialize the editor
     init_editor();
-
+    
     // Return the text for the interpreter to process
     return EDITOR_DATA.lock().text.to_string();
 }
