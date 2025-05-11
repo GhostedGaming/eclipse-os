@@ -29,8 +29,6 @@ x + y
 // If statement example
 if x == y {
     println("Hello, world!")
-} else {
-    println("Bye, world!")
 }
 "#
 .to_string();

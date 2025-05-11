@@ -21,6 +21,8 @@ pub enum Tokens {
     Return,
     True,
     False,
+    Increment,
+    Decrement,
     Identifier(String),
     Number(f64),
     String(String),
@@ -174,6 +176,8 @@ fn lexer(src: &str) -> Vec<Tokens> {
                     "false" => tokens.push(Tokens::False),
                     "print" => tokens.push(Tokens::Print),
                     "println" => tokens.push(Tokens::Println),
+                    "++" => tokens.push(Tokens::Increment),
+                    "--" => tokens.push(Tokens::Decrement),
                     _ => tokens.push(Tokens::Identifier(identifier)),
                 }
             }
