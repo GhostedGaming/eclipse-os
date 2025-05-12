@@ -10,12 +10,11 @@ use core::arch::asm;
 use lazy_static::lazy_static;
 use spin::Mutex;
 
-use super::lexer_proposal::Value;
-
 #[derive(Debug, PartialEq, Clone)]
 pub enum Tokens {
     Print,
     Println,
+    Asm,
     Let,
     Fn,
     If,
@@ -203,6 +202,7 @@ fn lexer(src: &str) -> Vec<Tokens> {
                     "false" => tokens.push(Tokens::False),
                     "print" => tokens.push(Tokens::Print),
                     "println" => tokens.push(Tokens::Println),
+                    "asm" => tokens.push(Tokens::Asm),
                     _ => tokens.push(Tokens::Identifier(identifier)),
                 }
             }
@@ -474,6 +474,30 @@ impl Parser {
                 // If not increment/decrement, go back to the identifier
                 self.current -= 1;
             }
+        }
+
+        // Asm macro (this might be hard to impl)
+        if matches!(self.peek(0), Tokens::Asm) {
+            self.advance();
+
+            if !matches!(self.advance(), Tokens::LeftParen) {
+                println!("Expected '(' after 'asm'");
+                return 0.0;
+            }
+
+            let value = match self.peek(0) {
+                Tokens::String(s) => {
+                    let asm_string = s.clone();
+                    self.advance();
+                    unsafe {
+                        asm!("{}", in(reg) asm_string);
+                        // i was right
+                    }
+                    0.0
+                }
+                _ => 0.0,
+            };
+            return value;
         }
 
         // Check for print statement
