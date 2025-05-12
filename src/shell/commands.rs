@@ -6,7 +6,7 @@ use crate::time;
 use crate::fs;
 use crate::shutdown;
 use crate::text_editor::{self, express_editor};
-use crate::interperter::lexer::run_example;
+use crate::intereperter::main_intereperter::run_example;
 
 pub fn about() {
     vga_buffer::set_color(Color::Cyan, Color::Black);

@@ -21,7 +21,7 @@ pub mod shutdown;
 pub mod fs;
 pub mod sounds;
 pub mod text_editor;
-pub mod interperter;
+pub mod intereperter;
 
 pub fn init() {
     gdt::init();
