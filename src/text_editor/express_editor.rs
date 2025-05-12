@@ -37,6 +37,8 @@ fn add(a, b) {
 
 let result = add(5, 3);
 println(result);
+x++;
+x--;
 "#
 .to_string();
     

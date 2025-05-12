@@ -10,6 +10,8 @@ use core::arch::asm;
 use lazy_static::lazy_static;
 use spin::Mutex;
 
+use super::lexer_proposal::Value;
+
 #[derive(Debug, PartialEq, Clone)]
 pub enum Tokens {
     Print,
@@ -82,8 +84,22 @@ fn lexer(src: &str) -> Vec<Tokens> {
                     tokens.push(Tokens::Divide);
                 }
             }
-            '+' => tokens.push(Tokens::Plus),
-            '-' => tokens.push(Tokens::Minus),
+            '+' => {
+                if let Some(&'+') = chars.peek() {
+                    chars.next(); // consume the second '+'
+                    tokens.push(Tokens::Increment);
+                } else {
+                    tokens.push(Tokens::Plus);
+                }
+            }
+            '-' => {
+                if let Some(&'-') = chars.peek() {
+                    chars.next(); // consume the second '-'
+                    tokens.push(Tokens::Decrement);
+                } else {
+                    tokens.push(Tokens::Minus);
+                }
+            }
             '*' => tokens.push(Tokens::Multiply),
             '^' => tokens.push(Tokens::Power),
             '(' => tokens.push(Tokens::LeftParen),
@@ -187,8 +203,6 @@ fn lexer(src: &str) -> Vec<Tokens> {
                     "false" => tokens.push(Tokens::False),
                     "print" => tokens.push(Tokens::Print),
                     "println" => tokens.push(Tokens::Println),
-                    "++" => tokens.push(Tokens::Increment),
-                    "--" => tokens.push(Tokens::Decrement),
                     _ => tokens.push(Tokens::Identifier(identifier)),
                 }
             }
@@ -376,6 +390,93 @@ impl Parser {
     }
 
     fn statement(&mut self) -> f64 {
+        if let Tokens::Identifier(name) = self.peek(0).clone() {
+            let var_name = name.clone(); // Clone the name before advancing
+            self.advance(); // consume identifier
+
+            if matches!(self.peek(0), Tokens::Increment) {
+                self.advance(); // consume '++'
+
+                // Get a mutable reference to the environment
+                let mut env = GLOBAL_ENV.lock();
+
+                // Check if the variable exists
+                if let Some(value) = env.get(&var_name) {
+                    let new_value = value + 1.0;
+                    env.set(var_name.to_string(), new_value);
+
+                    // Drop the lock before advancing to avoid potential deadlock
+                    drop(env);
+
+                    // Expect semicolon
+                    if !matches!(self.advance(), Tokens::Semicolon) {
+                        println!("Expected ';' after increment operation");
+                    }
+
+                    return new_value;
+                } else {
+                    println!("Undefined variable: {}", var_name);
+
+                    // Drop the lock before advancing
+                    drop(env);
+
+                    // Skip to the semicolon
+                    while !matches!(self.peek(0), Tokens::Semicolon)
+                        && !matches!(self.peek(0), Tokens::EOF)
+                    {
+                        self.advance();
+                    }
+                    if matches!(self.peek(0), Tokens::Semicolon) {
+                        self.advance(); // consume semicolon
+                    }
+
+                    return 0.0;
+                }
+            } else if matches!(self.peek(0), Tokens::Decrement) {
+                self.advance(); // consume '--'
+
+                // Get a mutable reference to the environment
+                let mut env = GLOBAL_ENV.lock();
+
+                // Check if the variable exists
+                if let Some(value) = env.get(&var_name) {
+                    let new_value = value - 1.0;
+                    env.set(var_name.to_string(), new_value);
+
+                    // Drop the lock before advancing to avoid potential deadlock
+                    drop(env);
+
+                    // Expect semicolon
+                    if !matches!(self.advance(), Tokens::Semicolon) {
+                        println!("Expected ';' after decrement operation");
+                    }
+
+                    return new_value;
+                } else {
+                    println!("Undefined variable: {}", var_name);
+
+                    // Drop the lock before advancing
+                    drop(env);
+
+                    // Skip to the semicolon
+                    while !matches!(self.peek(0), Tokens::Semicolon)
+                        && !matches!(self.peek(0), Tokens::EOF)
+                    {
+                        self.advance();
+                    }
+                    if matches!(self.peek(0), Tokens::Semicolon) {
+                        self.advance(); // consume semicolon
+                    }
+
+                    return 0.0;
+                }
+            } else {
+                // If not increment/decrement, go back to the identifier
+                self.current -= 1;
+            }
+        }
+
+        // Check for print statement
         if matches!(self.peek(0), Tokens::Print) {
             self.advance(); // consume 'print'
 
@@ -491,7 +592,7 @@ impl Parser {
             let value = self.expression();
 
             // Store the variable
-            GLOBAL_ENV.lock().set(var_name, value);
+            GLOBAL_ENV.lock().set(var_name.to_string(), value);
 
             // Expect a semicolon
             if !matches!(self.advance(), Tokens::Semicolon) {
@@ -635,6 +736,47 @@ impl Parser {
         }
 
         result
+    }
+    fn operators(&mut self) -> f64 {
+        if let Tokens::Identifier(name) = self.peek(0).clone() {
+            self.advance(); // Consume the identifier
+
+            // Check if the variable exists
+            if GLOBAL_ENV.lock().get(&name).is_none() {
+                println!("Error: Variable '{}' does not exist", name);
+                return 0.0;
+            }
+
+            // Get the current value
+            let value = GLOBAL_ENV.lock().get(&name).unwrap();
+            let mut new_value = value;
+
+            // Check for increment/decrement operators
+            if matches!(self.peek(0), Tokens::Increment) {
+                self.advance(); // Consume the increment token
+                new_value = value + 1.0;
+                GLOBAL_ENV.lock().set(name.clone(), new_value);
+            } else if matches!(self.peek(0), Tokens::Decrement) {
+                self.advance(); // Consume the decrement token
+                new_value = value - 1.0;
+                GLOBAL_ENV.lock().set(name.clone(), new_value);
+            } else {
+                // If no operator was found, backtrack
+                self.current -= 1; // Go back to the identifier
+                return 0.0;
+            }
+
+            // Expect a semicolon
+            if !matches!(self.peek(0), Tokens::Semicolon) {
+                println!("Expected ';' after increment/decrement operation");
+            } else {
+                self.advance(); // Consume the semicolon
+            }
+
+            return new_value;
+        }
+
+        0.0
     }
 
     fn declaration(&mut self) -> f64 {
