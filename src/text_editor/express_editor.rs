@@ -31,6 +31,7 @@ if x > y {
     println("Hello, world!");
 }
 
+// Function example
 fn add(a, b) {
     return a + b;
 }
@@ -39,6 +40,10 @@ let result = add(5, 3);
 println(result);
 x++;
 x--;
+
+// Inline assembly example
+asm("nop");
+
 "#
 .to_string();
     
