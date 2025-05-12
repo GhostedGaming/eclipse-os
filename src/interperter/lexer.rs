@@ -504,6 +504,33 @@ impl Parser {
                                     }
                                 }
                             }
+                            s if s.starts_with("mov ebx, ") => {
+                                if let Some(imm_str) = s.strip_prefix("mov eax, ") {
+                                    if let Ok(imm) = imm_str.trim().parse::<u32>() {
+                                        asm!("mov ebx, {0:e}", in(reg) imm);
+                                    } else {
+                                        println!("Invalid immediate value for mov: {}", imm_str);
+                                    }
+                                }
+                            }
+                            s if s.starts_with("mov ecx, ") => {
+                                if let Some(imm_str) = s.strip_prefix("mov eax, ") {
+                                    if let Ok(imm) = imm_str.trim().parse::<u32>() {
+                                        asm!("mov ecx, {0:e}", in(reg) imm);
+                                    } else {
+                                        println!("Invalid immediate value for mov: {}", imm_str);
+                                    }
+                                }
+                            }
+                            s if s.starts_with("mov edx, ") => {
+                                if let Some(imm_str) = s.strip_prefix("mov eax, ") {
+                                    if let Ok(imm) = imm_str.trim().parse::<u32>() {
+                                        asm!("mov edx, {0:e}", in(reg) imm);
+                                    } else {
+                                        println!("Invalid immediate value for mov: {}", imm_str);
+                                    }
+                                }
+                            }
                             _ => println!("Unsupported asm instruction: {}", asm_string),
                         }
                     }
