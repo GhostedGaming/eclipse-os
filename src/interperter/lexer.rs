@@ -51,6 +51,16 @@ pub enum Tokens {
     EOF,
 }
 
+// Define a structure to represent a function
+#[derive(Clone)]
+struct Function {
+    name: String,
+    parameters: Vec<String>,
+    body_tokens: Vec<Tokens>,
+    body_start: usize,
+    body_end: usize,
+}
+
 fn lexer(src: &str) -> Vec<Tokens> {
     let mut tokens = Vec::new();
     let mut chars = src.chars().peekable();
@@ -263,10 +273,17 @@ impl Environment {
     fn get(&self, name: &str) -> Option<f64> {
         self.variables.get(name).copied()
     }
+
+    fn clone(&self) -> Self {
+        Environment {
+            variables: self.variables.clone(),
+        }
+    }
 }
 
 lazy_static! {
     static ref GLOBAL_ENV: Mutex<Environment> = Mutex::new(Environment::new());
+    static ref FUNCTION_REGISTRY: Mutex<BTreeMap<String, Function>> = Mutex::new(BTreeMap::new());
 }
 // Parser for expressions with precedence
 struct Parser {
@@ -280,196 +297,10 @@ impl Parser {
     }
 
     fn parse(&mut self) -> f64 {
+        if matches!(self.peek(0), Tokens::Fn) {
+            return self.declaration();
+        }
         self.statement()
-    }
-
-    fn expression(&mut self) -> f64 {
-        // Handle variable assignment (only for existing variables)
-        if let Tokens::Identifier(name) = self.peek(0).clone() {
-            if let Tokens::Assign = self.peek(1) {
-                // Check if the variable exists
-                if GLOBAL_ENV.lock().get(&name).is_none() {
-                    // Error will be handled in statement() method
-                    // Just proceed with parsing
-                    let var_name = name;
-                    self.advance(); // consume identifier
-                    self.advance(); // consume =
-                    let value = self.expression();
-                    return value;
-                } else {
-                    // Variable exists, proceed with assignment
-                    let var_name = name;
-                    self.advance(); // consume identifier
-                    self.advance(); // consume =
-                    let value = self.expression();
-                    GLOBAL_ENV.lock().set(var_name, value);
-                    return value;
-                }
-            }
-        }
-
-        self.comparison()
-    }
-
-    fn comparison(&mut self) -> f64 {
-        let mut expr = self.term();
-
-        while matches!(
-            self.peek(0),
-            Tokens::Equal
-                | Tokens::NotEqual
-                | Tokens::LessThan
-                | Tokens::GreaterThan
-                | Tokens::LessThanEqual
-                | Tokens::GreaterThanEqual
-        ) {
-            let operator = self.advance().clone();
-            let right = self.term();
-
-            // For comparison operators, we return 1.0 for true and 0.0 for false
-            expr = match operator {
-                Tokens::Equal => {
-                    if equals(expr, right) {
-                        1.0
-                    } else {
-                        0.0
-                    }
-                }
-                Tokens::NotEqual => {
-                    if not_equals(expr, right) {
-                        1.0
-                    } else {
-                        0.0
-                    }
-                }
-                Tokens::LessThan => {
-                    if less_than(expr, right) {
-                        1.0
-                    } else {
-                        0.0
-                    }
-                }
-                Tokens::GreaterThan => {
-                    if greater_than(expr, right) {
-                        1.0
-                    } else {
-                        0.0
-                    }
-                }
-                Tokens::LessThanEqual => {
-                    if less_than_equal(expr, right) {
-                        1.0
-                    } else {
-                        0.0
-                    }
-                }
-                Tokens::GreaterThanEqual => {
-                    if greater_than_equal(expr, right) {
-                        1.0
-                    } else {
-                        0.0
-                    }
-                }
-                _ => unreachable!(),
-            };
-        }
-
-        expr
-    }
-
-    fn term(&mut self) -> f64 {
-        let mut expr = self.factor();
-
-        while matches!(self.peek(0), Tokens::Plus | Tokens::Minus) {
-            let operator = self.advance().clone();
-            let right = self.factor();
-
-            expr = match operator {
-                Tokens::Plus => add(expr, right),
-                Tokens::Minus => subtract(expr, right),
-                _ => unreachable!(),
-            };
-        }
-
-        expr
-    }
-
-    fn factor(&mut self) -> f64 {
-        let mut expr = self.exponent();
-
-        while matches!(self.peek(0), Tokens::Multiply | Tokens::Divide) {
-            let operator = self.advance().clone();
-            let right = self.exponent();
-
-            expr = match operator {
-                Tokens::Multiply => multiply(expr, right),
-                Tokens::Divide => divide(expr, right),
-                _ => unreachable!(),
-            };
-        }
-
-        expr
-    }
-
-    fn exponent(&mut self) -> f64 {
-        let mut expr = self.unary();
-
-        while matches!(self.peek(0), Tokens::Power) {
-            self.advance(); // consume ^
-            let right = self.unary();
-            expr = power(expr, right);
-        }
-
-        expr
-    }
-
-    fn unary(&mut self) -> f64 {
-        if matches!(self.peek(0), Tokens::Minus | Tokens::Not) {
-            let operator = self.advance().clone();
-            let right = self.unary();
-
-            return match operator {
-                Tokens::Minus => -right,
-                Tokens::Not => {
-                    if right == 0.0 {
-                        1.0
-                    } else {
-                        0.0
-                    }
-                }
-                _ => unreachable!(),
-            };
-        }
-
-        self.primary()
-    }
-
-    fn primary(&mut self) -> f64 {
-        let token = self.advance().clone();
-
-        match token {
-            Tokens::Number(value) => value,
-            Tokens::Identifier(name) => match GLOBAL_ENV.lock().get(&name) {
-                Some(value) => value,
-                None => {
-                    println!("Undefined variable: {}", name);
-                    0.0
-                }
-            },
-            Tokens::LeftParen => {
-                let expr = self.expression();
-                if !matches!(self.advance(), Tokens::RightParen) {
-                    println!("Expected closing parenthesis");
-                }
-                expr
-            }
-            Tokens::True => 1.0,
-            Tokens::False => 0.0,
-            _ => {
-                println!("Unexpected token: {:?}", token);
-                0.0
-            }
-        }
     }
 
     fn peek(&self, offset: usize) -> &Tokens {
@@ -494,6 +325,54 @@ impl Parser {
 
     fn previous(&self) -> &Tokens {
         &self.tokens[self.current - 1]
+    }
+
+    // Helper methods for block handling
+    fn block(&mut self) -> f64 {
+        let mut last_value = 0.0;
+        let mut brace_count = 1; // We've already consumed the opening brace
+
+        while brace_count > 0 && !self.is_at_end() {
+            // Check if we've reached a closing brace
+            if matches!(self.peek(0), Tokens::RightBrace) {
+                brace_count -= 1;
+                if brace_count == 0 {
+                    self.advance(); // consume the closing brace
+                    break;
+                }
+                self.advance(); // consume the closing brace of a nested block
+                continue;
+            }
+
+            // Check for opening braces (for nested blocks)
+            if matches!(self.peek(0), Tokens::LeftBrace) {
+                brace_count += 1;
+                self.advance(); // consume the opening brace
+                continue;
+            }
+
+            // Process a statement
+            last_value = self.statement();
+        }
+
+        last_value
+    }
+
+    fn skip_block(&mut self) {
+        let mut brace_count = 1; // We've already consumed the opening brace
+
+        while brace_count > 0 && !self.is_at_end() {
+            self.advance(); // Skip this token
+
+            if matches!(self.previous(), Tokens::LeftBrace) {
+                brace_count += 1;
+            } else if matches!(self.previous(), Tokens::RightBrace) {
+                brace_count -= 1;
+                if brace_count == 0 {
+                    break;
+                }
+            }
+        }
     }
 
     fn statement(&mut self) -> f64 {
@@ -568,6 +447,20 @@ impl Parser {
             // Check for semicolon
             if !matches!(self.advance(), Tokens::Semicolon) {
                 println!("Expected ';' after each statement/variable");
+            }
+
+            return value;
+        }
+
+        if matches!(self.peek(0), Tokens::Return) {
+            self.advance(); // consume 'return'
+
+            // Parse the expression to return
+            let value = self.expression();
+
+            // Expect a semicolon
+            if !matches!(self.advance(), Tokens::Semicolon) {
+                println!("Expected ';' after return statement");
             }
 
             return value;
@@ -764,7 +657,7 @@ impl Parser {
                 return 0.0;
             }
 
-            // Parse parameters (for now, just skip them)
+            // Parse parameters
             let mut params = Vec::new();
             if !matches!(self.peek(0), Tokens::RightParen) {
                 loop {
@@ -787,67 +680,327 @@ impl Parser {
                         return 0.0;
                     }
                 }
-
-                self.advance();
-
-                if !matches!(self.advance(), Tokens::LeftBrace) {
-                    println!("Expected '{{' after function parameters or ()");
-                }
-
-                self.block();
-
-                return 0.0
             }
+
+            // Consume the closing parenthesis
+            self.advance(); // consume ')'
+
+            // Expect opening brace for function body
+            if !matches!(self.advance(), Tokens::LeftBrace) {
+                println!("Expected '{{' after function parameters");
+                return 0.0;
+            }
+
+            // Save the current position as the start of the function body
+            let body_start = self.current;
+
+            // Count braces to find the end of the function body
+            let mut brace_count = 1;
+            let mut body_tokens = Vec::new();
+
+            while brace_count > 0 && !self.is_at_end() {
+                let token = self.peek(0).clone();
+                body_tokens.push(token.clone());
+
+                self.advance(); // Move to next token
+
+                if matches!(token, Tokens::LeftBrace) {
+                    brace_count += 1;
+                } else if matches!(token, Tokens::RightBrace) {
+                    brace_count -= 1;
+                    if brace_count == 0 {
+                        // Remove the last token (closing brace) from body_tokens
+                        body_tokens.pop();
+                        break;
+                    }
+                }
+            }
+
+            // Store the function in the registry
+            let function = Function {
+                name: fn_name.clone(),
+                parameters: params,
+                body_tokens,
+                body_start,
+                body_end: self.current - 1, // Exclude the closing brace
+            };
+
+            FUNCTION_REGISTRY.lock().insert(fn_name, function);
+
+            println!("Function defined successfully");
+            return 0.0; // Function declarations don't return a value
         }
 
+        // If not a function declaration, parse as a statement
         self.statement()
     }
 
-    // Helper methods for block handling
-    fn block(&mut self) -> f64 {
-        let mut last_value = 0.0;
-        let mut brace_count = 1; // We've already consumed the opening brace
-
-        while brace_count > 0 && !self.is_at_end() {
-            // Check if we've reached a closing brace
-            if matches!(self.peek(0), Tokens::RightBrace) {
-                brace_count -= 1;
-                if brace_count == 0 {
-                    self.advance(); // consume the closing brace
-                    break;
+    fn expression(&mut self) -> f64 {
+        // Handle variable assignment (only for existing variables)
+        if let Tokens::Identifier(name) = self.peek(0).clone() {
+            if let Tokens::Assign = self.peek(1) {
+                // Check if the variable exists
+                if GLOBAL_ENV.lock().get(&name).is_none() {
+                    // Error will be handled in statement() method
+                    // Just proceed with parsing
+                    let var_name = name;
+                    self.advance(); // consume identifier
+                    self.advance(); // consume =
+                    let value = self.expression();
+                    return value;
+                } else {
+                    // Variable exists, proceed with assignment
+                    let var_name = name;
+                    self.advance(); // consume identifier
+                    self.advance(); // consume =
+                    let value = self.expression();
+                    GLOBAL_ENV.lock().set(var_name, value);
+                    return value;
                 }
-                self.advance(); // consume the closing brace of a nested block
-                continue;
             }
-
-            // Check for opening braces (for nested blocks)
-            if matches!(self.peek(0), Tokens::LeftBrace) {
-                brace_count += 1;
-                self.advance(); // consume the opening brace
-                continue;
-            }
-
-            // Process a statement
-            last_value = self.statement();
         }
 
-        last_value
+        self.comparison()
     }
 
-    fn skip_block(&mut self) {
-        let mut brace_count = 1; // We've already consumed the opening brace
+    fn comparison(&mut self) -> f64 {
+        let mut expr = self.term();
 
-        while brace_count > 0 && !self.is_at_end() {
-            self.advance(); // Skip this token
+        while matches!(
+            self.peek(0),
+            Tokens::Equal
+                | Tokens::NotEqual
+                | Tokens::LessThan
+                | Tokens::GreaterThan
+                | Tokens::LessThanEqual
+                | Tokens::GreaterThanEqual
+        ) {
+            let operator = self.advance().clone();
+            let right = self.term();
 
-            if matches!(self.previous(), Tokens::LeftBrace) {
-                brace_count += 1;
-            } else if matches!(self.previous(), Tokens::RightBrace) {
-                brace_count -= 1;
-                if brace_count == 0 {
-                    break;
+            // For comparison operators, we return 1.0 for true and 0.0 for false
+            expr = match operator {
+                Tokens::Equal => {
+                    if equals(expr, right) {
+                        1.0
+                    } else {
+                        0.0
+                    }
+                }
+                Tokens::NotEqual => {
+                    if not_equals(expr, right) {
+                        1.0
+                    } else {
+                        0.0
+                    }
+                }
+                Tokens::LessThan => {
+                    if less_than(expr, right) {
+                        1.0
+                    } else {
+                        0.0
+                    }
+                }
+                Tokens::GreaterThan => {
+                    if greater_than(expr, right) {
+                        1.0
+                    } else {
+                        0.0
+                    }
+                }
+                Tokens::LessThanEqual => {
+                    if less_than_equal(expr, right) {
+                        1.0
+                    } else {
+                        0.0
+                    }
+                }
+                Tokens::GreaterThanEqual => {
+                    if greater_than_equal(expr, right) {
+                        1.0
+                    } else {
+                        0.0
+                    }
+                }
+                _ => unreachable!(),
+            };
+        }
+
+        expr
+    }
+
+    fn term(&mut self) -> f64 {
+        let mut expr = self.factor();
+
+        while matches!(self.peek(0), Tokens::Plus | Tokens::Minus) {
+            let operator = self.advance().clone();
+            let right = self.factor();
+
+            expr = match operator {
+                Tokens::Plus => add(expr, right),
+                Tokens::Minus => subtract(expr, right),
+                _ => unreachable!(),
+            };
+        }
+
+        expr
+    }
+
+    fn factor(&mut self) -> f64 {
+        let mut expr = self.exponent();
+
+        while matches!(self.peek(0), Tokens::Multiply | Tokens::Divide) {
+            let operator = self.advance().clone();
+            let right = self.exponent();
+
+            expr = match operator {
+                Tokens::Multiply => multiply(expr, right),
+                Tokens::Divide => divide(expr, right),
+                _ => unreachable!(),
+            };
+        }
+
+        expr
+    }
+
+    fn exponent(&mut self) -> f64 {
+        let mut expr = self.unary();
+
+        while matches!(self.peek(0), Tokens::Power) {
+            self.advance(); // consume ^
+            let right = self.unary();
+            expr = power(expr, right);
+        }
+
+        expr
+    }
+
+    fn unary(&mut self) -> f64 {
+        if matches!(self.peek(0), Tokens::Minus | Tokens::Not) {
+            let operator = self.advance().clone();
+            let right = self.unary();
+
+            return match operator {
+                Tokens::Minus => -right,
+                Tokens::Not => {
+                    if right == 0.0 {
+                        1.0
+                    } else {
+                        0.0
+                    }
+                }
+                _ => unreachable!(),
+            };
+        }
+
+        self.primary()
+    }
+
+    fn primary(&mut self) -> f64 {
+        let token = self.advance().clone();
+
+        match token {
+            Tokens::Number(value) => value,
+            Tokens::Identifier(name) => {
+                // Check if this is a function call
+                if matches!(self.peek(0), Tokens::LeftParen) {
+                    self.advance(); // consume '('
+
+                    // Parse arguments
+                    let mut args = Vec::new();
+                    if !matches!(self.peek(0), Tokens::RightParen) {
+                        loop {
+                            args.push(self.expression());
+
+                            if matches!(self.peek(0), Tokens::Comma) {
+                                self.advance(); // consume ','
+                            } else if matches!(self.peek(0), Tokens::RightParen) {
+                                break;
+                            } else {
+                                println!("Expected ',' or ')' after argument");
+                                return 0.0;
+                            }
+                        }
+                    }
+
+                    self.advance(); // consume ')'
+
+                    // Call the function
+                    return self.call_function(&name, args);
+                }
+
+                // If not a function call, treat as variable
+                match GLOBAL_ENV.lock().get(&name) {
+                    Some(value) => value,
+                    None => {
+                        println!("Undefined variable: {}", name);
+                        0.0
+                    }
                 }
             }
+            Tokens::LeftParen => {
+                let expr = self.expression();
+                if !matches!(self.advance(), Tokens::RightParen) {
+                    println!("Expected closing parenthesis");
+                }
+                expr
+            }
+            Tokens::True => 1.0,
+            Tokens::False => 0.0,
+            _ => {
+                println!("Unexpected token: {:?}", token);
+                0.0
+            }
+        }
+    }
+    fn call_function(&mut self, name: &str, args: Vec<f64>) -> f64 {
+        // Get the function from the registry
+        let function_opt = FUNCTION_REGISTRY.lock().get(name).cloned();
+
+        if let Some(function) = function_opt {
+            // Save current environment state
+            let global_env_backup = GLOBAL_ENV.lock().clone();
+
+            // Create a new environment with parameters bound to arguments
+            let mut function_env = Environment::new();
+
+            // Copy global variables to function environment (to allow access to globals)
+            for (key, value) in &global_env_backup.variables {
+                function_env.set(key.clone(), *value);
+            }
+
+            // Bind parameters to arguments
+            for (i, param_name) in function.parameters.iter().enumerate() {
+                if i < args.len() {
+                    function_env.set(param_name.clone(), args[i]);
+                } else {
+                    println!("Warning: Missing argument for parameter '{}'", param_name);
+                    function_env.set(param_name.clone(), 0.0); // Default value
+                }
+            }
+
+            // Set the function environment as the global environment
+            *GLOBAL_ENV.lock() = function_env;
+
+            // Save current position in the token stream
+            let current_pos = self.current;
+
+            // Create a new parser for the function body
+            let mut function_parser = Parser::new(function.body_tokens.clone());
+
+            // Execute the function body
+            let result = function_parser.parse();
+
+            // Restore the global environment
+            *GLOBAL_ENV.lock() = global_env_backup;
+
+            // Restore the current position
+            self.current = current_pos;
+
+            return result;
+        } else {
+            println!("Undefined function: {}", name);
+            return 0.0;
         }
     }
 }

@@ -1,6 +1,5 @@
 #!/bin/bash
 
-cargo clean
 cargo bootimage
 
 # Hard-coded paths

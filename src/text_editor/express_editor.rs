@@ -30,6 +30,13 @@ x + y;
 if x > y {
     println("Hello, world!");
 }
+
+fn add(a, b) {
+    return a + b;
+}
+
+let result = add(5, 3);
+println(result);
 "#
 .to_string();
     
