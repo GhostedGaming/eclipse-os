@@ -4,6 +4,7 @@ extern crate libm;
 use crate::text_editor::express_editor::test;
 use crate::{print, println};
 use alloc::collections::BTreeMap;
+use alloc::ffi::CString;
 use alloc::string::{self, String, ToString};
 use alloc::vec::Vec;
 use core::arch::asm;
@@ -476,7 +477,6 @@ impl Parser {
             }
         }
 
-        // Asm macro (this might be hard to impl)
         if matches!(self.peek(0), Tokens::Asm) {
             self.advance();
 
@@ -488,11 +488,16 @@ impl Parser {
             let value = match self.peek(0) {
                 Tokens::String(s) => {
                     let asm_string = s.clone();
+                    let c_string = CString::new(asm_string).expect("CString::new failed");
+                    let raw_ptr = c_string.as_ptr(); // Get a raw pointer to the null-terminated C string
+                    self.advance();
                     self.advance();
                     unsafe {
-                        asm!("{}", in(reg) asm_string);
-                        // i was right
-                    }
+                        asm!(
+                            "{0}",
+                            in(reg) raw_ptr
+                        );
+                    } // im too lazy to test this
                     0.0
                 }
                 _ => 0.0,
