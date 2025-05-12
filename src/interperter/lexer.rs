@@ -502,6 +502,15 @@ impl Parser {
                 }
                 _ => 0.0,
             };
+
+            if !matches!(self.advance(), Tokens::RightParen) {
+                println!("Expected ')' after print argument");
+            }
+
+            if !matches!(self.advance(), Tokens::Semicolon) {
+                println!("Expected ';' after each statement/variable");
+            }
+            
             return value;
         }
 
