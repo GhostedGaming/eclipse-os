@@ -22,13 +22,13 @@ pub fn test() -> String {
     // Set a simpler example to debug
     EDITOR_DATA.lock().text = r#"
 // Variable assignment
-x = 10
-y = 5
-x + y
+let x = 10;
+let y = 5;
+x + y;
 
 // If statement example
-if x == y {
-    println("Hello, world!")
+if x > y {
+    println("Hello, world!");
 }
 "#
 .to_string();

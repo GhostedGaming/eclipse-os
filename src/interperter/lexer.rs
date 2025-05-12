@@ -6,6 +6,7 @@ use crate::{print, println};
 use alloc::collections::BTreeMap;
 use alloc::string::{self, String, ToString};
 use alloc::vec::Vec;
+use core::arch::asm;
 use lazy_static::lazy_static;
 use spin::Mutex;
 
@@ -283,15 +284,27 @@ impl Parser {
     }
 
     fn expression(&mut self) -> f64 {
-        // Handle variable assignment
+        // Handle variable assignment (only for existing variables)
         if let Tokens::Identifier(name) = self.peek(0).clone() {
             if let Tokens::Assign = self.peek(1) {
-                let var_name = name;
-                self.advance(); // consume identifier
-                self.advance(); // consume =
-                let value = self.expression();
-                GLOBAL_ENV.lock().set(var_name, value);
-                return value;
+                // Check if the variable exists
+                if GLOBAL_ENV.lock().get(&name).is_none() {
+                    // Error will be handled in statement() method
+                    // Just proceed with parsing
+                    let var_name = name;
+                    self.advance(); // consume identifier
+                    self.advance(); // consume =
+                    let value = self.expression();
+                    return value;
+                } else {
+                    // Variable exists, proceed with assignment
+                    let var_name = name;
+                    self.advance(); // consume identifier
+                    self.advance(); // consume =
+                    let value = self.expression();
+                    GLOBAL_ENV.lock().set(var_name, value);
+                    return value;
+                }
             }
         }
 
@@ -514,6 +527,11 @@ impl Parser {
                 println!("Expected ')' after print argument");
             }
 
+            // Check for semicolon
+            if !matches!(self.advance(), Tokens::Semicolon) {
+                println!("Expected ';' after each statement/variable");
+            }
+
             return value;
         }
 
@@ -531,13 +549,13 @@ impl Parser {
                 Tokens::String(s) => {
                     let string_to_print = s.clone();
                     self.advance(); // consume the string
-                    println!("{}", string_to_print);
+                    println!("{}", string_to_print); // Actually print the string
                     0.0 // Return value doesn't matter for print
                 }
                 _ => {
                     // For expressions, evaluate and print the result
                     let result = self.expression();
-                    println!("{}", result);
+                    println!("{}", result); // Print the result
                     result
                 }
             };
@@ -545,6 +563,46 @@ impl Parser {
             // Check for closing parenthesis
             if !matches!(self.advance(), Tokens::RightParen) {
                 println!("Expected ')' after println argument");
+            }
+
+            // Check for semicolon
+            if !matches!(self.advance(), Tokens::Semicolon) {
+                println!("Expected ';' after each statement/variable");
+            }
+
+            return value;
+        }
+
+        // Variable declaration - require 'let' keyword
+        if matches!(self.peek(0), Tokens::Let) {
+            self.advance(); // consume 'let'
+
+            // Expect an identifier
+            let var_name = match self.peek(0) {
+                Tokens::Identifier(name) => name.clone(),
+                _ => {
+                    println!("Expected identifier after 'let'");
+                    return 0.0;
+                }
+            };
+            self.advance(); // consume identifier
+
+            // Expect an assignment
+            if !matches!(self.peek(0), Tokens::Assign) {
+                println!("Expected '=' after variable name");
+                return 0.0;
+            }
+            self.advance(); // consume '='
+
+            // Parse the expression
+            let value = self.expression();
+
+            // Store the variable
+            GLOBAL_ENV.lock().set(var_name, value);
+
+            // Expect a semicolon
+            if !matches!(self.advance(), Tokens::Semicolon) {
+                println!("Expected ';' after each statement/variable");
             }
 
             return value;
@@ -557,6 +615,9 @@ impl Parser {
             // Parse condition
             let condition = self.expression();
 
+            // Debug the condition value
+            println!("If condition evaluated to: {}", condition);
+
             // Expect opening brace for then block
             if !matches!(self.advance(), Tokens::LeftBrace) {
                 println!("Expected '{{' after if condition");
@@ -567,9 +628,11 @@ impl Parser {
             let mut then_result = 0.0;
             if condition != 0.0 {
                 // Only execute the then block if condition is true
+                println!("Executing 'then' block");
                 then_result = self.block();
             } else {
                 // Skip the then block
+                println!("Skipping 'then' block");
                 self.skip_block();
             }
 
@@ -586,9 +649,11 @@ impl Parser {
                 // Parse else block
                 if condition == 0.0 {
                     // Only execute the else block if condition is false
+                    println!("Executing 'else' block");
                     return self.block();
                 } else {
                     // Skip the else block
+                    println!("Skipping 'else' block");
                     self.skip_block();
                     return then_result;
                 }
@@ -642,80 +707,100 @@ impl Parser {
             return last_value;
         }
 
-        // Variable declaration
-        if matches!(self.peek(0), Tokens::Let) {
-            self.advance(); // consume 'let'
+        // Not a special statement, parse as normal expression
+        // Check if this is a variable assignment (without 'let')
+        if let Tokens::Identifier(name) = self.peek(0).clone() {
+            if let Tokens::Assign = self.peek(1) {
+                // This is a variable assignment without 'let'
+                // Check if the variable already exists
+                if GLOBAL_ENV.lock().get(&name).is_none() {
+                    println!(
+                        "Error: Variable '{}' must be declared with 'let' before assignment",
+                        name
+                    );
+                    self.advance(); // consume identifier
+                    self.advance(); // consume =
+                    // Still evaluate the expression to avoid further parsing errors
+                    let _ = self.expression();
 
-            // Expect an identifier
-            let var_name = match self.peek(0) {
-                Tokens::Identifier(name) => name.clone(),
-                _ => {
-                    println!("Expected identifier after 'let'");
+                    // Check for semicolon
+                    if !matches!(self.advance(), Tokens::Semicolon) {
+                        println!("Expected ';' after each statement/variable");
+                    }
+
                     return 0.0;
                 }
-            };
-            self.advance(); // consume identifier
-
-            // Expect an assignment
-            if !matches!(self.peek(0), Tokens::Assign) {
-                println!("Expected '=' after variable name");
-                return 0.0;
+                // If the variable exists, proceed with normal expression parsing
             }
-            self.advance(); // consume '='
-
-            // Parse the expression
-            let value = self.expression();
-
-            // Store the variable
-            GLOBAL_ENV.lock().set(var_name, value);
-
-            // Expect a semicolon
-            if !matches!(self.peek(0), Tokens::Semicolon) {
-                println!("Expected ';' after variable declaration");
-            } else {
-                self.advance(); // consume ';'
-            }
-
-            return value;
         }
 
-        // Function declaration
-        if matches!(self.peek(0), Tokens::Fn) {
-            self.advance(); // consume 'fn'
-
-            // For now, just skip function declarations
-            // In a real implementation, you would parse the function name, parameters, and body
-            // and store them for later execution
-
-            // Skip until we find a closing brace
-            let mut brace_count = 0;
-            while !self.is_at_end() {
-                match self.peek(0) {
-                    Tokens::LeftBrace => brace_count += 1,
-                    Tokens::RightBrace => {
-                        brace_count -= 1;
-                        if brace_count == 0 {
-                            self.advance(); // consume the closing brace
-                            break;
-                        }
-                    }
-                    _ => {}
-                }
-                self.advance();
-            }
-
-            return 0.0;
-        }
-
-        // Not a special statement, parse as normal expression
         let result = self.expression();
 
-        // Consume any trailing semicolon
-        if matches!(self.peek(0), Tokens::Semicolon) {
-            self.advance();
+        // Consume and check for semicolon
+        if !matches!(self.advance(), Tokens::Semicolon) {
+            println!("Expected ';' after each statement/variable");
         }
 
         result
+    }
+
+    fn declaration(&mut self) -> f64 {
+        if matches!(self.peek(0), Tokens::Fn) {
+            self.advance(); // consume 'fn'
+
+            // Expect a function name (identifier)
+            let fn_name = match self.peek(0) {
+                Tokens::Identifier(name) => name.clone(),
+                _ => {
+                    println!("Expected function name after 'fn'");
+                    return 0.0;
+                }
+            };
+            self.advance(); // consume function name
+
+            // Expect opening parenthesis for parameters
+            if !matches!(self.advance(), Tokens::LeftParen) {
+                println!("Expected '(' after function name");
+                return 0.0;
+            }
+
+            // Parse parameters (for now, just skip them)
+            let mut params = Vec::new();
+            if !matches!(self.peek(0), Tokens::RightParen) {
+                loop {
+                    // Expect parameter name
+                    if let Tokens::Identifier(param_name) = self.peek(0).clone() {
+                        params.push(param_name);
+                        self.advance(); // consume parameter name
+
+                        // Check for comma or closing parenthesis
+                        if matches!(self.peek(0), Tokens::Comma) {
+                            self.advance(); // consume comma
+                        } else if matches!(self.peek(0), Tokens::RightParen) {
+                            break;
+                        } else {
+                            println!("Expected ',' or ')' after parameter");
+                            return 0.0;
+                        }
+                    } else {
+                        println!("Expected parameter name");
+                        return 0.0;
+                    }
+                }
+
+                self.advance();
+
+                if !matches!(self.advance(), Tokens::LeftBrace) {
+                    println!("Expected '{{' after function parameters or ()");
+                }
+
+                self.block();
+
+                return 0.0
+            }
+        }
+
+        self.statement()
     }
 
     // Helper methods for block handling
@@ -724,16 +809,25 @@ impl Parser {
         let mut brace_count = 1; // We've already consumed the opening brace
 
         while brace_count > 0 && !self.is_at_end() {
-            if matches!(self.peek(0), Tokens::LeftBrace) {
-                brace_count += 1;
-            } else if matches!(self.peek(0), Tokens::RightBrace) {
+            // Check if we've reached a closing brace
+            if matches!(self.peek(0), Tokens::RightBrace) {
                 brace_count -= 1;
                 if brace_count == 0 {
                     self.advance(); // consume the closing brace
                     break;
                 }
+                self.advance(); // consume the closing brace of a nested block
+                continue;
             }
 
+            // Check for opening braces (for nested blocks)
+            if matches!(self.peek(0), Tokens::LeftBrace) {
+                brace_count += 1;
+                self.advance(); // consume the opening brace
+                continue;
+            }
+
+            // Process a statement
             last_value = self.statement();
         }
 
@@ -744,17 +838,16 @@ impl Parser {
         let mut brace_count = 1; // We've already consumed the opening brace
 
         while brace_count > 0 && !self.is_at_end() {
-            if matches!(self.peek(0), Tokens::LeftBrace) {
+            self.advance(); // Skip this token
+
+            if matches!(self.previous(), Tokens::LeftBrace) {
                 brace_count += 1;
-            } else if matches!(self.peek(0), Tokens::RightBrace) {
+            } else if matches!(self.previous(), Tokens::RightBrace) {
                 brace_count -= 1;
                 if brace_count == 0 {
-                    self.advance(); // consume the closing brace
                     break;
                 }
             }
-
-            self.advance(); // Skip this token
         }
     }
 }
