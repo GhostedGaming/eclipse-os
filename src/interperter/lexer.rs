@@ -488,16 +488,25 @@ impl Parser {
             let value = match self.peek(0) {
                 Tokens::String(s) => {
                     let asm_string = s.clone();
-                    let c_string = CString::new(asm_string).expect("CString::new failed");
-                    let raw_ptr = c_string.as_ptr(); // Get a raw pointer to the null-terminated C string
                     self.advance();
                     self.advance();
                     unsafe {
-                        asm!(
-                            "{0}",
-                            in(reg) raw_ptr
-                        );
-                    } // im too lazy to test this
+                        match asm_string.as_str() {
+                            "nop" => asm!("nop"),
+                            "hlt" => asm!("hlt"),
+                            "cli" => asm!("cli"),
+                            s if s.starts_with("mov eax, ") => {
+                                if let Some(imm_str) = s.strip_prefix("mov eax, ") {
+                                    if let Ok(imm) = imm_str.trim().parse::<u32>() {
+                                        asm!("mov eax, {0:e}", in(reg) imm);
+                                    } else {
+                                        println!("Invalid immediate value for mov: {}", imm_str);
+                                    }
+                                }
+                            }
+                            _ => println!("Unsupported asm instruction: {}", asm_string),
+                        }
+                    }
                     0.0
                 }
                 _ => 0.0,
@@ -510,7 +519,7 @@ impl Parser {
             if !matches!(self.advance(), Tokens::Semicolon) {
                 println!("Expected ';' after each statement/variable");
             }
-            
+
             return value;
         }
 

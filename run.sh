@@ -35,6 +35,8 @@ if [ ! -f "$FAT32_DISK" ]; then
     echo "FAT32 virtual disk created at $FAT32_DISK"
 fi
 
+cp ./output/bootimage-eclipse_os.bin iso/boot/kernel.bin
+
 # Run QEMU with both the bootable image and the FAT32 disk
 # Using more compatible settings
 qemu-system-x86_64 -rtc base=localtime \
