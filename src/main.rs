@@ -13,6 +13,7 @@ use bootloader::{BootInfo, entry_point};
 use core::panic::PanicInfo;
 use eclipse_os::vga_buffer::{self, Color};
 use eclipse_os::time;
+use eclipse_os::intereperter::main_intereperter::run_example;
 
 entry_point!(kernel_main);
 
@@ -107,6 +108,7 @@ async fn example_task() {
     let success = number == 42;
     print_status(&format!("Async Number [{}]", number), if success { Ok(()) } else { Err(()) });
     print_ascii();
+    run_example();
 }
 
 fn print_ascii() {
