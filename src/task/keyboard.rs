@@ -164,7 +164,7 @@ pub async fn print_keypresses() {
                             },
                             // Handle tab (0x09)
                             '\u{0009}' => {
-                                print!("    ");
+                                vprint!("    ");
                             },
                             // Handle escape (0x1B)
                             '\u{001B}' => {
@@ -202,7 +202,7 @@ pub async fn print_keypresses() {
                             },
                             // Handle tab key (insert 4 spaces)
                             KeyCode::Tab => {
-                                print!("    ");
+                                vprint!("    ");
                             },
                             // Handle OEM7 key (backslash or pipe with shift)
                             KeyCode::Oem7 => {

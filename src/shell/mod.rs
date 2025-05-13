@@ -1,7 +1,7 @@
 pub mod commands;
 
 use alloc::string::String;
-use crate::vga_buffer;
+use crate::video_buffer;
 use crate::{print, println, QemuExitCode, exit_qemu};
 
 pub struct Shell {
@@ -22,7 +22,7 @@ impl Shell {
             '\n' => {
                 println!();
                 self.execute_command();
-                print!("eclipse> ");
+                vprint!("eclipse> ");
                 self.input_buffer.clear();
                 self.cursor_position = 0;
             }
@@ -30,13 +30,13 @@ impl Shell {
                 if self.cursor_position > 0 {
                     self.input_buffer.remove(self.cursor_position - 1);
                     self.cursor_position -= 1;
-                    vga_buffer::backspace();
+                    video_buffer::backspace();
                 }
             }
             c if c.is_ascii() && !c.is_control() => {
                 self.input_buffer.insert(self.cursor_position, c);
                 self.cursor_position += 1;
-                print!("{}", c);
+                vprint!("{}", c);
             }
             _ => {}
         }
@@ -71,6 +71,6 @@ impl Shell {
     pub fn start(&mut self) {
         println!("EclipseOS Shell v0.1.0");
         println!("Type 'help' for available commands.");
-        print!("eclipse> ");
+        vprint!("eclipse> ");
     }
 }

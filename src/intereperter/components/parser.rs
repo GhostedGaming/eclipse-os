@@ -286,13 +286,13 @@ impl Parser {
                 Tokens::String(s) => {
                     let string_to_print = s.clone();
                     self.advance(); // consume the string
-                    print!("{}", string_to_print);
+                    vprint!("{}", string_to_print);
                     0.0 // Return value doesn't matter for print
                 }
                 _ => {
                     // For expressions, evaluate and print the result
                     let result = self.expression();
-                    print!("{}", result);
+                    vprint!("{}", result);
                     result
                 }
             };

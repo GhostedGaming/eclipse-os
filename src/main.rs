@@ -7,12 +7,14 @@
 extern crate alloc;
 
 use alloc::format;
-use eclipse_os::{println, print};
+// use eclipse_os::{println, print};
 use eclipse_os::task::{Task, executor::Executor, keyboard};
 use bootloader::{BootInfo, entry_point};
 use core::panic::PanicInfo;
-use eclipse_os::vga_buffer::{self, Color, CursorStyle};
+// use eclipse_os::vga_buffer::{self, Color, CursorStyle};
 use eclipse_os::time;
+use eclipse_os::video_buffer::{self, Color, CursorStyle};
+use eclipse_os::{vprint, vprintln};
 
 entry_point!(kernel_main);
 
@@ -28,9 +30,9 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     let mut mapper = unsafe { memory::init(phys_mem_offset) };
     let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
 
-    vga_buffer::set_cursor_style(CursorStyle::Underline);
-    vga_buffer::set_color(Color::White, Color::Black);
-    vga_buffer::set_cursor_visibility(true);
+    video_buffer::set_cursor_style(CursorStyle::Underline);
+    video_buffer::set_color(Color::White, Color::Black);
+    video_buffer::set_cursor_visibility(true);
 
     // Initialize heap and check status
     print_status("Heap Initialization", allocator::init_heap(&mut mapper, &mut frame_allocator).map_err(|_| ()));
@@ -57,21 +59,21 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
 /// Helper function to print status messages with consistent formatting
 fn print_status(component: &str, result: Result<(), ()>) {
-    print!("{} [", component);
+    vvprint!("{} [", component);
 
     match result {
         Ok(_) => {
-            vga_buffer::set_color(Color::Green, Color::Black);
-            print!("OK");
+            video_buffer::set_color(Color::Green, Color::Black);
+            vvprint!("OK");
         }
         Err(_) => {
-            vga_buffer::set_color(Color::Red, Color::Black);
-            print!("FAIL");
+            video_buffer::set_color(Color::Red, Color::Black);
+            vvprint!("FAIL");
         }
     }
 
-    vga_buffer::set_color(Color::White, Color::Black);
-    print!("]\n");
+    video_buffer::set_color(Color::White, Color::Black);
+    vvprint!("]\n");
 }
 
 /// Perform trivial assertion and return success status
@@ -92,7 +94,7 @@ fn initiate_time() -> Result<(), ()> {
 #[cfg(not(test))]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    println!("{}", info);
+    vprintln!("{}", info);
     eclipse_os::hlt_loop();
 }
 
@@ -114,10 +116,10 @@ async fn example_task() {
 }
 
 fn print_ascii() {
-    vga_buffer::set_color(Color::Purple, Color::Black);
-    println!("");
-    println!("      --ECLIPSE OS--     ");
-    println!("");
-    vga_buffer::set_color(Color::White, Color::Black);
+    video_buffer::set_color(Color::Purple, Color::Black);
+    vprintln!("");
+    vprintln!("      --ECLIPSE OS--     ");
+    vprintln!("");
+    video_buffer::set_color(Color::White, Color::Black);
     eclipse_os::task::keyboard::init_shell();
 }
