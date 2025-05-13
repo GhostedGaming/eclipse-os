@@ -3,10 +3,13 @@ use core::arch::asm;
 use alloc::string::ToString;
 use alloc::vec::Vec;
 
-use crate::intereperter::run::Function;
 use crate::intereperter::run::FUNCTION_REGISTRY;
+use crate::intereperter::run::Function;
 use crate::{print, println};
 
+use super::Environment;
+use super::GLOBAL_ENV;
+use super::Tokens;
 use super::add;
 use super::divide;
 use super::equals;
@@ -18,9 +21,6 @@ use super::multiply;
 use super::not_equals;
 use super::power;
 use super::subtract;
-use super::Environment;
-use super::Tokens;
-use super::GLOBAL_ENV;
 
 pub struct Parser {
     tokens: Vec<Tokens>,
@@ -111,6 +111,14 @@ impl Parser {
         }
     }
 
+    fn consume_semicolon(&mut self, text: &str) {
+        if !matches!(self.advance(), Tokens::Semicolon) {
+            if !matches!(self.advance(), Tokens::Semicolon) {
+                println!("Expected ';' after {}", text);
+            }
+        }
+    }
+
     fn statement(&mut self) -> f64 {
         if let Tokens::Identifier(name) = self.peek(0).clone() {
             let var_name = name.clone(); // Clone the name before advancing
@@ -130,11 +138,7 @@ impl Parser {
                     // Drop the lock before advancing to avoid potential deadlock
                     drop(env);
 
-                    // Expect semicolon
-                    if !matches!(self.advance(), Tokens::Semicolon) {
-                        println!("Expected ';' after increment operation");
-                    }
-
+                    self.consume_semicolon("increment operation");
                     return new_value;
                 } else {
                     println!("Undefined variable: {}", var_name);
@@ -168,11 +172,7 @@ impl Parser {
                     // Drop the lock before advancing to avoid potential deadlock
                     drop(env);
 
-                    // Expect semicolon
-                    if !matches!(self.advance(), Tokens::Semicolon) {
-                        println!("Expected ';' after decrement operation");
-                    }
-
+                    self.consume_semicolon("decrement operation");
                     return new_value;
                 } else {
                     println!("Undefined variable: {}", var_name);
@@ -209,7 +209,6 @@ impl Parser {
             let value = match self.peek(0) {
                 Tokens::String(s) => {
                     let asm_string = s.clone();
-                    self.advance();
                     self.advance();
                     unsafe {
                         match asm_string.as_str() {
@@ -261,13 +260,10 @@ impl Parser {
             };
 
             if !matches!(self.advance(), Tokens::RightParen) {
-                println!("Expected ')' after print argument");
+                println!("Expected ')' after asm argument");
             }
 
-            if !matches!(self.advance(), Tokens::Semicolon) {
-                println!("Expected ';' after each statement/variable");
-            }
-
+            self.consume_semicolon("asm statement");
             return value;
         }
 
@@ -302,11 +298,7 @@ impl Parser {
                 println!("Expected ')' after print argument");
             }
 
-            // Check for semicolon
-            if !matches!(self.advance(), Tokens::Semicolon) {
-                println!("Expected ';' after each statement/variable");
-            }
-
+            self.consume_semicolon("print statement");
             return value;
         }
 
@@ -340,11 +332,7 @@ impl Parser {
                 println!("Expected ')' after println argument");
             }
 
-            // Check for semicolon
-            if !matches!(self.advance(), Tokens::Semicolon) {
-                println!("Expected ';' after each statement/variable");
-            }
-
+            self.consume_semicolon("println statement");
             return value;
         }
 
@@ -354,11 +342,7 @@ impl Parser {
             // Parse the expression to return
             let value = self.expression();
 
-            // Expect a semicolon
-            if !matches!(self.advance(), Tokens::Semicolon) {
-                println!("Expected ';' after return statement");
-            }
-
+            self.consume_semicolon("return statement");
             return value;
         }
 
@@ -389,11 +373,7 @@ impl Parser {
             // Store the variable
             GLOBAL_ENV.lock().set(var_name.to_string(), value);
 
-            // Expect a semicolon
-            if !matches!(self.advance(), Tokens::Semicolon) {
-                println!("Expected ';' after each statement/variable");
-            }
-
+            self.consume_semicolon("variable declaration");
             return value;
         }
 
@@ -512,11 +492,7 @@ impl Parser {
                     // Still evaluate the expression to avoid further parsing errors
                     let _ = self.expression();
 
-                    // Check for semicolon
-                    if !matches!(self.advance(), Tokens::Semicolon) {
-                        println!("Expected ';' after each statement/variable");
-                    }
-
+                    self.consume_semicolon("assignment statement");
                     return 0.0;
                 }
                 // If the variable exists, proceed with normal expression parsing
@@ -525,11 +501,7 @@ impl Parser {
 
         let result = self.expression();
 
-        // Consume and check for semicolon
-        if !matches!(self.advance(), Tokens::Semicolon) {
-            println!("Expected ';' after each statement/variable");
-        }
-
+        self.consume_semicolon("expression");
         result
     }
     fn operators(&mut self) -> f64 {

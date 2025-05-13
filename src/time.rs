@@ -8,7 +8,7 @@ static SYSTEM_TIME: AtomicU64 = AtomicU64::new(0);
 // Store ticks since boot
 static TICKS_SINCE_BOOT: AtomicU64 = AtomicU64::new(0);
 // Set tick rate to match hardware timer frequency
-static TICKS_PER_SECOND: u64 = 15;
+static TICKS_PER_SECOND: u64 = 1;
 
 // CMOS RTC registers
 const CMOS_ADDRESS: u16 = 0x70;

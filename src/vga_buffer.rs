@@ -1,14 +1,15 @@
+use crate::sounds;
 use core::fmt;
 use lazy_static::lazy_static;
 use spin::Mutex;
 use volatile::Volatile;
-use crate::sounds;
+use crate::text_editor::express_editor::EDITOR_DATA;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CursorStyle {
-    Block,      // Full square/block cursor (inverts colors)
-    Underline,  // Underline cursor (changes fg color)
-    Invert,     // Invert colors (like block, but can be styled differently)
+    Block,     // Full square/block cursor (inverts colors)
+    Underline, // Underline cursor (changes fg color)
+    Invert,    // Invert colors (like block, but can be styled differently)
 }
 
 lazy_static! {
@@ -124,11 +125,11 @@ impl Writer {
     pub fn set_color(&mut self, foreground: Color, background: Color) {
         self.color_code = ColorCode::new(foreground, background);
     }
-    
+
     pub fn write_byte(&mut self, byte: u8) {
         // Erase cursor before writing
         self.erase_cursor();
-        
+
         match byte {
             b'\n' => self.new_line(),
             byte => {
@@ -147,7 +148,7 @@ impl Writer {
                 self.column_position += 1;
             }
         }
-        
+
         // Draw cursor after writing
         if self.cursor_visible {
             self.draw_cursor();
@@ -197,25 +198,28 @@ impl Writer {
         if self.column_position > 0 {
             // Erase cursor before modifying
             self.erase_cursor();
-            
+
             // Move cursor back one position
             self.column_position -= 1;
-            
+
             // Create a blank ScreenChar with the current color code
             let blank = ScreenChar {
                 ascii_character: b' ',
                 color_code: self.color_code,
             };
-            
+
             // Write the blank character to erase the previous character
             self.buffer.chars[BUFFER_HEIGHT - 1][self.column_position].write(blank);
-            
+
             // Redraw cursor at new position
             if self.cursor_visible {
                 self.draw_cursor();
             }
         } else {
-            sounds::play_sound(440);
+            let editor_data_active = EDITOR_DATA.lock().active;
+            if !editor_data_active {
+                sounds::play_beep_for(10, 500);
+            }
         }
     }
 
@@ -232,7 +236,9 @@ impl Writer {
     pub fn draw_cursor(&mut self) {
         let row = BUFFER_HEIGHT - 1;
         let col = self.column_position;
-        if col >= BUFFER_WIDTH { return; }
+        if col >= BUFFER_WIDTH {
+            return;
+        }
 
         // Save the current character under the cursor if not already saved
         if self.saved_cursor_char.is_none() {
@@ -249,7 +255,7 @@ impl Writer {
                     ascii_character: current_char.ascii_character,
                     color_code: ColorCode::new(fg, bg),
                 }
-            },
+            }
             CursorStyle::Underline => {
                 // Use a different foreground color for underline effect (e.g., Yellow)
                 let mut underline_code = current_char.color_code;
@@ -258,12 +264,12 @@ impl Writer {
                     ascii_character: current_char.ascii_character,
                     color_code: underline_code,
                 }
-            },
+            }
         };
 
         self.buffer.chars[row][col].write(cursor_char);
     }
-    
+
     /// Erases the cursor by restoring the original character
     pub fn erase_cursor(&mut self) {
         let row = BUFFER_HEIGHT - 1;
@@ -274,7 +280,7 @@ impl Writer {
             }
         }
     }
-    
+
     /// Toggles cursor visibility (for blinking)
     pub fn toggle_cursor(&mut self) {
         if self.cursor_visible {
@@ -284,7 +290,7 @@ impl Writer {
         }
         self.cursor_visible = !self.cursor_visible;
     }
-    
+
     /// Sets the cursor visibility
     pub fn set_cursor_visibility(&mut self, visible: bool) {
         if visible != self.cursor_visible {
@@ -296,7 +302,7 @@ impl Writer {
             self.cursor_visible = visible;
         }
     }
-    
+
     /// Moves the cursor to a new position
     pub fn move_cursor(&mut self, new_col: usize) {
         self.erase_cursor();
@@ -305,7 +311,7 @@ impl Writer {
             self.draw_cursor();
         }
     }
-    
+
     /// Sets the cursor style
     pub fn set_cursor_style(&mut self, style: CursorStyle) {
         self.erase_cursor();
