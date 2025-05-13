@@ -6,9 +6,9 @@ use crate::sounds;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CursorStyle {
-    Block,      // Full square/block cursor
-    Underline,  // Underline cursor
-    Invert,     // Current implementation (inverted colors)
+    Block,      // Full square/block cursor (inverts colors)
+    Underline,  // Underline cursor (changes fg color)
+    Invert,     // Invert colors (like block, but can be styled differently)
 }
 
 lazy_static! {
@@ -17,8 +17,9 @@ lazy_static! {
         color_code: ColorCode::new(Color::White, Color::Black),
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
         cursor_visible: true,
-        cursor_color: ColorCode::new(Color::Black, Color::LightGray), // Inverted colors for cursor
-        cursor_style: CursorStyle::Block, // Default to block cursor
+        cursor_color: ColorCode::new(Color::Black, Color::LightGray),
+        cursor_style: CursorStyle::Block,
+        saved_cursor_char: None,
     });
 }
 
@@ -45,6 +46,30 @@ pub enum Color {
     White = 15,
 }
 
+impl Color {
+    fn from_u8(val: u8) -> Color {
+        match val {
+            0 => Color::Black,
+            1 => Color::Blue,
+            2 => Color::Green,
+            3 => Color::Cyan,
+            4 => Color::Red,
+            5 => Color::Purple,
+            6 => Color::Brown,
+            7 => Color::LightGray,
+            8 => Color::DarkGray,
+            9 => Color::LightBlue,
+            10 => Color::LightGreen,
+            11 => Color::LightCyan,
+            12 => Color::LightRed,
+            13 => Color::Pink,
+            14 => Color::Yellow,
+            15 => Color::White,
+            _ => Color::White,
+        }
+    }
+}
+
 /// A combination of a foreground and a background color.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
@@ -54,6 +79,12 @@ impl ColorCode {
     /// Create a new `ColorCode` with the given foreground and background colors.
     fn new(foreground: Color, background: Color) -> ColorCode {
         ColorCode((background as u8) << 4 | (foreground as u8))
+    }
+    fn fg(&self) -> Color {
+        Color::from_u8(self.0 & 0x0F)
+    }
+    fn bg(&self) -> Color {
+        Color::from_u8((self.0 >> 4) & 0x0F)
     }
 }
 
@@ -77,7 +108,6 @@ struct Buffer {
 }
 
 /// A writer type that allows writing ASCII bytes and strings to an underlying `Buffer`.
-///
 /// Wraps lines at `BUFFER_WIDTH`. Supports newline characters and implements the
 /// `core::fmt::Write` trait.
 pub struct Writer {
@@ -87,6 +117,7 @@ pub struct Writer {
     cursor_visible: bool,
     cursor_color: ColorCode,
     cursor_style: CursorStyle,
+    saved_cursor_char: Option<ScreenChar>, // Store the char under the cursor
 }
 
 impl Writer {
@@ -104,10 +135,10 @@ impl Writer {
                 if self.column_position >= BUFFER_WIDTH {
                     self.new_line();
                 }
-    
+
                 let row = BUFFER_HEIGHT - 1;
                 let col = self.column_position;
-    
+
                 let color_code = self.color_code;
                 self.buffer.chars[row][col].write(ScreenChar {
                     ascii_character: byte,
@@ -124,7 +155,6 @@ impl Writer {
     }
 
     /// Writes the given ASCII string to the buffer.
-    ///
     /// Wraps lines at `BUFFER_WIDTH`. Supports the `\n` newline character. Does **not**
     /// support strings with non-ASCII characters, since they can't be printed in the VGA text
     /// mode.
@@ -134,9 +164,7 @@ impl Writer {
                 self.new_line();
             }
             match byte {
-                // printable ASCII byte or newline
                 0x20..=0x7e | b'\n' => self.write_byte(byte),
-                // not part of printable ASCII range
                 _ => self.write_byte(0xfe),
             }
         }
@@ -186,54 +214,53 @@ impl Writer {
             if self.cursor_visible {
                 self.draw_cursor();
             }
-        } else { //Got to write a speaker driver :(
+        } else {
             sounds::play_sound(440);
         }
     }
 
     pub fn column_position(&self) -> usize {
-        return self.column_position;
+        self.column_position
     }
 
     pub fn move_cursor_up(&mut self, lines: usize) {
-        // Move the cursor up one line, if not already at the top
         if self.column_position > 0 {
-            self.column_position -= lines;
+            self.column_position = self.column_position.saturating_sub(lines);
         }
     }
 
     pub fn draw_cursor(&mut self) {
         let row = BUFFER_HEIGHT - 1;
         let col = self.column_position;
-        
-        // Get the current character at cursor position
-        let current_char = self.buffer.chars[row][col].read();
-        
+        if col >= BUFFER_WIDTH { return; }
+
+        // Save the current character under the cursor if not already saved
+        if self.saved_cursor_char.is_none() {
+            self.saved_cursor_char = Some(self.buffer.chars[row][col].read());
+        }
+        let current_char = self.saved_cursor_char.unwrap();
+
         let cursor_char = match self.cursor_style {
-            CursorStyle::Block => {
-                // For block cursor, use space character with inverted colors
+            CursorStyle::Block | CursorStyle::Invert => {
+                // Invert foreground and background colors
+                let fg = current_char.color_code.bg();
+                let bg = current_char.color_code.fg();
                 ScreenChar {
-                    ascii_character: b' ',
-                    color_code: ColorCode::new(Color::Black, Color::Yellow), // Fully inverted block
+                    ascii_character: current_char.ascii_character,
+                    color_code: ColorCode::new(fg, bg),
                 }
             },
             CursorStyle::Underline => {
-                // For underline, use underscore character
-                ScreenChar {
-                    ascii_character: b'_',
-                    color_code: self.cursor_color,
-                }
-            },
-            CursorStyle::Invert => {
-                // Current implementation (inverted colors)
+                // Use a different foreground color for underline effect (e.g., Yellow)
+                let mut underline_code = current_char.color_code;
+                underline_code.0 = (underline_code.0 & 0xF0) | (Color::Yellow as u8);
                 ScreenChar {
                     ascii_character: current_char.ascii_character,
-                    color_code: self.cursor_color,
+                    color_code: underline_code,
                 }
             },
         };
-        
-        // Draw the cursor
+
         self.buffer.chars[row][col].write(cursor_char);
     }
     
@@ -241,23 +268,10 @@ impl Writer {
     pub fn erase_cursor(&mut self) {
         let row = BUFFER_HEIGHT - 1;
         let col = self.column_position;
-        
         if col < BUFFER_WIDTH {
-            // Get the current character at cursor position
-            let current_char = self.buffer.chars[row][col].read();
-            
-            // Restore the character with normal colors
-            let normal_char = ScreenChar {
-                ascii_character: if self.cursor_style == CursorStyle::Block || self.cursor_style == CursorStyle::Underline {
-                    b' ' // For block or underline cursor, restore with space
-                } else {
-                    current_char.ascii_character // For inverted cursor, keep the character
-                },
-                color_code: self.color_code,
-            };
-            
-            // Draw the normal character
-            self.buffer.chars[row][col].write(normal_char);
+            if let Some(orig) = self.saved_cursor_char.take() {
+                self.buffer.chars[row][col].write(orig);
+            }
         }
     }
     
@@ -285,13 +299,8 @@ impl Writer {
     
     /// Moves the cursor to a new position
     pub fn move_cursor(&mut self, new_col: usize) {
-        // Erase cursor at current position
         self.erase_cursor();
-        
-        // Update position
         self.column_position = new_col;
-        
-        // Draw cursor at new position
         if self.cursor_visible {
             self.draw_cursor();
         }
@@ -316,7 +325,6 @@ impl fmt::Write for Writer {
 
 pub fn set_color(foreground: Color, background: Color) {
     use x86_64::instructions::interrupts;
-    
     interrupts::without_interrupts(|| {
         WRITER.lock().set_color(foreground, background);
     });
@@ -341,7 +349,6 @@ macro_rules! println {
 pub fn _print(args: fmt::Arguments) {
     use core::fmt::Write;
     use x86_64::instructions::interrupts;
-
     interrupts::without_interrupts(|| {
         WRITER.lock().write_fmt(args).unwrap();
     });
@@ -349,7 +356,6 @@ pub fn _print(args: fmt::Arguments) {
 
 pub fn move_cursor_up(lines: usize) {
     use x86_64::instructions::interrupts;
-    
     interrupts::without_interrupts(|| {
         WRITER.lock().move_cursor_up(lines);
     });
@@ -357,7 +363,6 @@ pub fn move_cursor_up(lines: usize) {
 
 pub fn backspace() {
     use x86_64::instructions::interrupts;
-    
     interrupts::without_interrupts(|| {
         WRITER.lock().handle_backspace();
     });
@@ -366,7 +371,6 @@ pub fn backspace() {
 /// Sets the cursor style globally
 pub fn set_cursor_style(style: CursorStyle) {
     use x86_64::instructions::interrupts;
-    
     interrupts::without_interrupts(|| {
         WRITER.lock().set_cursor_style(style);
     });
@@ -375,7 +379,6 @@ pub fn set_cursor_style(style: CursorStyle) {
 /// Sets the cursor visibility globally
 pub fn set_cursor_visibility(visible: bool) {
     use x86_64::instructions::interrupts;
-    
     interrupts::without_interrupts(|| {
         WRITER.lock().set_cursor_visibility(visible);
     });
@@ -384,7 +387,6 @@ pub fn set_cursor_visibility(visible: bool) {
 /// Force redraw of the cursor
 pub fn redraw_cursor() {
     use x86_64::instructions::interrupts;
-    
     interrupts::without_interrupts(|| {
         let mut writer = WRITER.lock();
         writer.erase_cursor();
@@ -396,15 +398,12 @@ pub fn redraw_cursor() {
 
 pub fn clear_screen() {
     use x86_64::instructions::interrupts;
-    
     interrupts::without_interrupts(|| {
         let mut writer = WRITER.lock();
         for row in 0..BUFFER_HEIGHT {
             writer.clear_row(row);
         }
         writer.column_position = 0;
-        
-        // Redraw cursor if needed
         if writer.cursor_visible {
             writer.draw_cursor();
         }

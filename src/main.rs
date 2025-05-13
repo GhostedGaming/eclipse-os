@@ -11,9 +11,8 @@ use eclipse_os::{println, print};
 use eclipse_os::task::{Task, executor::Executor, keyboard};
 use bootloader::{BootInfo, entry_point};
 use core::panic::PanicInfo;
-use eclipse_os::vga_buffer::{self, Color};
+use eclipse_os::vga_buffer::{self, Color, CursorStyle};
 use eclipse_os::time;
-use eclipse_os::intereperter::main_intereperter::run_example;
 
 entry_point!(kernel_main);
 
@@ -28,6 +27,10 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
     let mut mapper = unsafe { memory::init(phys_mem_offset) };
     let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
+
+    vga_buffer::set_cursor_style(CursorStyle::Underline);
+    vga_buffer::set_color(Color::White, Color::Black);
+    vga_buffer::set_cursor_visibility(true);
 
     // Initialize heap and check status
     print_status("Heap Initialization", allocator::init_heap(&mut mapper, &mut frame_allocator).map_err(|_| ()));
