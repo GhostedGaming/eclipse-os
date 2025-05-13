@@ -5,7 +5,7 @@ use alloc::vec::Vec;
 
 use crate::intereperter::run::Function;
 use crate::intereperter::run::FUNCTION_REGISTRY;
-use crate::{vprint, vprintln};
+use crate::{print, println};
 
 use super::add;
 use super::divide;
@@ -132,12 +132,12 @@ impl Parser {
 
                     // Expect semicolon
                     if !matches!(self.advance(), Tokens::Semicolon) {
-                        vprintln!("Expected ';' after increment operation");
+                        println!("Expected ';' after increment operation");
                     }
 
                     return new_value;
                 } else {
-                    vprintln!("Undefined variable: {}", var_name);
+                    println!("Undefined variable: {}", var_name);
 
                     // Drop the lock before advancing
                     drop(env);
@@ -170,12 +170,12 @@ impl Parser {
 
                     // Expect semicolon
                     if !matches!(self.advance(), Tokens::Semicolon) {
-                        vprintln!("Expected ';' after decrement operation");
+                        println!("Expected ';' after decrement operation");
                     }
 
                     return new_value;
                 } else {
-                    vprintln!("Undefined variable: {}", var_name);
+                    println!("Undefined variable: {}", var_name);
 
                     // Drop the lock before advancing
                     drop(env);
@@ -202,7 +202,7 @@ impl Parser {
             self.advance();
 
             if !matches!(self.advance(), Tokens::LeftParen) {
-                vprintln!("Expected '(' after 'asm'");
+                println!("Expected '(' after 'asm'");
                 return 0.0;
             }
 
@@ -221,7 +221,7 @@ impl Parser {
                                     if let Ok(imm) = imm_str.trim().parse::<u32>() {
                                         asm!("mov eax, {0:e}", in(reg) imm);
                                     } else {
-                                        vprintln!("Invalid immediate value for mov: {}", imm_str);
+                                        println!("Invalid immediate value for mov: {}", imm_str);
                                     }
                                 }
                             }
@@ -230,7 +230,7 @@ impl Parser {
                                     if let Ok(imm) = imm_str.trim().parse::<u32>() {
                                         asm!("mov ebx, {0:e}", in(reg) imm);
                                     } else {
-                                        vprintln!("Invalid immediate value for mov: {}", imm_str);
+                                        println!("Invalid immediate value for mov: {}", imm_str);
                                     }
                                 }
                             }
@@ -239,7 +239,7 @@ impl Parser {
                                     if let Ok(imm) = imm_str.trim().parse::<u32>() {
                                         asm!("mov ecx, {0:e}", in(reg) imm);
                                     } else {
-                                        vprintln!("Invalid immediate value for mov: {}", imm_str);
+                                        println!("Invalid immediate value for mov: {}", imm_str);
                                     }
                                 }
                             }
@@ -248,11 +248,11 @@ impl Parser {
                                     if let Ok(imm) = imm_str.trim().parse::<u32>() {
                                         asm!("mov edx, {0:e}", in(reg) imm);
                                     } else {
-                                        vprintln!("Invalid immediate value for mov: {}", imm_str);
+                                        println!("Invalid immediate value for mov: {}", imm_str);
                                     }
                                 }
                             }
-                            _ => vprintln!("Unsupported asm instruction: {}", asm_string),
+                            _ => println!("Unsupported asm instruction: {}", asm_string),
                         }
                     }
                     0.0
@@ -261,11 +261,11 @@ impl Parser {
             };
 
             if !matches!(self.advance(), Tokens::RightParen) {
-                vprintln!("Expected ')' after print argument");
+                println!("Expected ')' after print argument");
             }
 
             if !matches!(self.advance(), Tokens::Semicolon) {
-                vprintln!("Expected ';' after each statement/variable");
+                println!("Expected ';' after each statement/variable");
             }
 
             return value;
@@ -277,7 +277,7 @@ impl Parser {
 
             // Check for opening parenthesis
             if !matches!(self.advance(), Tokens::LeftParen) {
-                vprintln!("Expected '(' after 'print'");
+                println!("Expected '(' after 'print'");
                 return 0.0;
             }
 
@@ -286,25 +286,25 @@ impl Parser {
                 Tokens::String(s) => {
                     let string_to_print = s.clone();
                     self.advance(); // consume the string
-                    vprint!("{}", string_to_print);
+                    print!("{}", string_to_print);
                     0.0 // Return value doesn't matter for print
                 }
                 _ => {
                     // For expressions, evaluate and print the result
                     let result = self.expression();
-                    vprint!("{}", result);
+                    print!("{}", result);
                     result
                 }
             };
 
             // Check for closing parenthesis
             if !matches!(self.advance(), Tokens::RightParen) {
-                vprintln!("Expected ')' after print argument");
+                println!("Expected ')' after print argument");
             }
 
             // Check for semicolon
             if !matches!(self.advance(), Tokens::Semicolon) {
-                vprintln!("Expected ';' after each statement/variable");
+                println!("Expected ';' after each statement/variable");
             }
 
             return value;
@@ -315,7 +315,7 @@ impl Parser {
 
             // Check for opening parenthesis
             if !matches!(self.advance(), Tokens::LeftParen) {
-                vprintln!("Expected '(' after 'println'");
+                println!("Expected '(' after 'println'");
                 return 0.0;
             }
 
@@ -324,25 +324,25 @@ impl Parser {
                 Tokens::String(s) => {
                     let string_to_print = s.clone();
                     self.advance(); // consume the string
-                    vprintln!("{}", string_to_print); // Actually print the string
+                    println!("{}", string_to_print); // Actually print the string
                     0.0 // Return value doesn't matter for print
                 }
                 _ => {
                     // For expressions, evaluate and print the result
                     let result = self.expression();
-                    vprintln!("{}", result); // Print the result
+                    println!("{}", result); // Print the result
                     result
                 }
             };
 
             // Check for closing parenthesis
             if !matches!(self.advance(), Tokens::RightParen) {
-                vprintln!("Expected ')' after println argument");
+                println!("Expected ')' after println argument");
             }
 
             // Check for semicolon
             if !matches!(self.advance(), Tokens::Semicolon) {
-                vprintln!("Expected ';' after each statement/variable");
+                println!("Expected ';' after each statement/variable");
             }
 
             return value;
@@ -356,7 +356,7 @@ impl Parser {
 
             // Expect a semicolon
             if !matches!(self.advance(), Tokens::Semicolon) {
-                vprintln!("Expected ';' after return statement");
+                println!("Expected ';' after return statement");
             }
 
             return value;
@@ -370,7 +370,7 @@ impl Parser {
             let var_name = match self.peek(0) {
                 Tokens::Identifier(name) => name.clone(),
                 _ => {
-                    vprintln!("Expected identifier after 'let'");
+                    println!("Expected identifier after 'let'");
                     return 0.0;
                 }
             };
@@ -378,7 +378,7 @@ impl Parser {
 
             // Expect an assignment
             if !matches!(self.peek(0), Tokens::Assign) {
-                vprintln!("Expected '=' after variable name");
+                println!("Expected '=' after variable name");
                 return 0.0;
             }
             self.advance(); // consume '='
@@ -391,7 +391,7 @@ impl Parser {
 
             // Expect a semicolon
             if !matches!(self.advance(), Tokens::Semicolon) {
-                vprintln!("Expected ';' after each statement/variable");
+                println!("Expected ';' after each statement/variable");
             }
 
             return value;
@@ -405,11 +405,11 @@ impl Parser {
             let condition = self.expression();
 
             // Debug the condition value
-            vprintln!("If condition evaluated to: {}", condition);
+            println!("If condition evaluated to: {}", condition);
 
             // Expect opening brace for then block
             if !matches!(self.advance(), Tokens::LeftBrace) {
-                vprintln!("Expected '{{' after if condition");
+                println!("Expected '{{' after if condition");
                 return 0.0;
             }
 
@@ -417,11 +417,11 @@ impl Parser {
             let mut then_result = 0.0;
             if condition != 0.0 {
                 // Only execute the then block if condition is true
-                vprintln!("Executing 'then' block");
+                println!("Executing 'then' block");
                 then_result = self.block();
             } else {
                 // Skip the then block
-                vprintln!("Skipping 'then' block");
+                println!("Skipping 'then' block");
                 self.skip_block();
             }
 
@@ -431,18 +431,18 @@ impl Parser {
 
                 // Expect opening brace for else block
                 if !matches!(self.advance(), Tokens::LeftBrace) {
-                    vprintln!("Expected '{{' after else");
+                    println!("Expected '{{' after else");
                     return 0.0;
                 }
 
                 // Parse else block
                 if condition == 0.0 {
                     // Only execute the else block if condition is false
-                    vprintln!("Executing 'else' block");
+                    println!("Executing 'else' block");
                     return self.block();
                 } else {
                     // Skip the else block
-                    vprintln!("Skipping 'else' block");
+                    println!("Skipping 'else' block");
                     self.skip_block();
                     return then_result;
                 }
@@ -463,7 +463,7 @@ impl Parser {
 
             // Expect opening brace for loop body
             if !matches!(self.advance(), Tokens::LeftBrace) {
-                vprintln!("Expected '{{' after while condition");
+                println!("Expected '{{' after while condition");
                 return 0.0;
             }
 
@@ -503,7 +503,7 @@ impl Parser {
                 // This is a variable assignment without 'let'
                 // Check if the variable already exists
                 if GLOBAL_ENV.lock().get(&name).is_none() {
-                    vprintln!(
+                    println!(
                         "Error: Variable '{}' must be declared with 'let' before assignment",
                         name
                     );
@@ -514,7 +514,7 @@ impl Parser {
 
                     // Check for semicolon
                     if !matches!(self.advance(), Tokens::Semicolon) {
-                        vprintln!("Expected ';' after each statement/variable");
+                        println!("Expected ';' after each statement/variable");
                     }
 
                     return 0.0;
@@ -527,7 +527,7 @@ impl Parser {
 
         // Consume and check for semicolon
         if !matches!(self.advance(), Tokens::Semicolon) {
-            vprintln!("Expected ';' after each statement/variable");
+            println!("Expected ';' after each statement/variable");
         }
 
         result
@@ -538,7 +538,7 @@ impl Parser {
 
             // Check if the variable exists
             if GLOBAL_ENV.lock().get(&name).is_none() {
-                vprintln!("Error: Variable '{}' does not exist", name);
+                println!("Error: Variable '{}' does not exist", name);
                 return 0.0;
             }
 
@@ -563,7 +563,7 @@ impl Parser {
 
             // Expect a semicolon
             if !matches!(self.peek(0), Tokens::Semicolon) {
-                vprintln!("Expected ';' after increment/decrement operation");
+                println!("Expected ';' after increment/decrement operation");
             } else {
                 self.advance(); // Consume the semicolon
             }
@@ -582,7 +582,7 @@ impl Parser {
             let fn_name = match self.peek(0) {
                 Tokens::Identifier(name) => name.clone(),
                 _ => {
-                    vprintln!("Expected function name after 'fn'");
+                    println!("Expected function name after 'fn'");
                     return 0.0;
                 }
             };
@@ -590,7 +590,7 @@ impl Parser {
 
             // Expect opening parenthesis for parameters
             if !matches!(self.advance(), Tokens::LeftParen) {
-                vprintln!("Expected '(' after function name");
+                println!("Expected '(' after function name");
                 return 0.0;
             }
 
@@ -609,11 +609,11 @@ impl Parser {
                         } else if matches!(self.peek(0), Tokens::RightParen) {
                             break;
                         } else {
-                            vprintln!("Expected ',' or ')' after parameter");
+                            println!("Expected ',' or ')' after parameter");
                             return 0.0;
                         }
                     } else {
-                        vprintln!("Expected parameter name");
+                        println!("Expected parameter name");
                         return 0.0;
                     }
                 }
@@ -624,7 +624,7 @@ impl Parser {
 
             // Expect opening brace for function body
             if !matches!(self.advance(), Tokens::LeftBrace) {
-                vprintln!("Expected '{{' after function parameters");
+                println!("Expected '{{' after function parameters");
                 return 0.0;
             }
 
@@ -664,7 +664,7 @@ impl Parser {
 
             FUNCTION_REGISTRY.lock().insert(fn_name, function);
 
-            vprintln!("Function defined successfully");
+            println!("Function defined successfully");
             return 0.0; // Function declarations don't return a value
         }
 
@@ -854,7 +854,7 @@ impl Parser {
                             } else if matches!(self.peek(0), Tokens::RightParen) {
                                 break;
                             } else {
-                                vprintln!("Expected ',' or ')' after argument");
+                                println!("Expected ',' or ')' after argument");
                                 return 0.0;
                             }
                         }
@@ -870,7 +870,7 @@ impl Parser {
                 match GLOBAL_ENV.lock().get(&name) {
                     Some(value) => value,
                     None => {
-                        vprintln!("Undefined variable: {}", name);
+                        println!("Undefined variable: {}", name);
                         0.0
                     }
                 }
@@ -878,14 +878,14 @@ impl Parser {
             Tokens::LeftParen => {
                 let expr = self.expression();
                 if !matches!(self.advance(), Tokens::RightParen) {
-                    vprintln!("Expected closing parenthesis");
+                    println!("Expected closing parenthesis");
                 }
                 expr
             }
             Tokens::True => 1.0,
             Tokens::False => 0.0,
             _ => {
-                vprintln!("Unexpected token: {:?}", token);
+                println!("Unexpected token: {:?}", token);
                 0.0
             }
         }
@@ -911,7 +911,7 @@ impl Parser {
                 if i < args.len() {
                     function_env.set(param_name.clone(), args[i]);
                 } else {
-                    vprintln!("Warning: Missing argument for parameter '{}'", param_name);
+                    println!("Warning: Missing argument for parameter '{}'", param_name);
                     function_env.set(param_name.clone(), 0.0); // Default value
                 }
             }
@@ -936,7 +936,7 @@ impl Parser {
 
             return result;
         } else {
-            vprintln!("Undefined function: {}", name);
+            println!("Undefined function: {}", name);
             return 0.0;
         }
     }

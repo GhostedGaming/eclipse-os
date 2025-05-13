@@ -1,23 +1,22 @@
 use alloc::string::String;
 use core::str::SplitWhitespace;
-use crate::{vprintln, QemuExitCode, exit_qemu};
-use crate::video_buffer::{self, Color, clear_screen};
+use crate::{exit_qemu, println, vga_buffer, QemuExitCode};
 use crate::time;
 use crate::shutdown;
 use crate::text_editor::express_editor;
 use crate::intereperter::run::run_example;
 
 pub fn about() {
-    video_buffer::set_color(Color::Cyan, Color::Black);
-    vprintln!("\nEclipseOS");
-    video_buffer::set_color(Color::White, Color::Black);
-    vprintln!("A simple operating system written in Rust");
-    vprintln!("Developed as a learning project");
-    vprintln!("Type 'help' for available commands");
+    vga_buffer::set_color(vga_buffer::Color::Cyan, vga_buffer::Color::Black);
+    println!("\nEclipseOS");
+    vga_buffer::set_color(vga_buffer::Color::White, vga_buffer::Color::Black);
+    println!("A simple operating system written in Rust");
+    println!("Developed as a learning project");
+    println!("Type 'help' for available commands");
 }
 
 pub fn clear() {
-    clear_screen();
+    vga_buffer::clear_screen();
 }
 
 pub fn echo(mut args: SplitWhitespace) {
@@ -38,9 +37,9 @@ pub fn echo(mut args: SplitWhitespace) {
     let contains_slur = slurs.iter().any(|&slur| trimmed_output.to_lowercase().contains(slur));
     
     if contains_slur {
-        vprintln!("[Filtered content]");
+        println!("[Filtered content]");
     } else {
-        vprintln!("{}", trimmed_output);
+        println!("{}", trimmed_output);
     }
 }
 
@@ -50,22 +49,22 @@ pub fn express() {
 }
 
 pub fn hello() {
-    vprintln!("Hello");
+    println!("Hello");
 }
 
 pub fn help() {
-    vprintln!("Available commands:");
-    vprintln!("  about    - Display information about EclipseS");
-    vprintln!("  clear    - Clear the screen");
-    vprintln!("  ls       - Lists the contents of a directory");
-    vprintln!("  echo     - Display a line of text");
-    vprintln!("  hello    - Displays \"Hello\"");
-    vprintln!("  help     - Display this help message");
-    vprintln!("  shutdown - Shutsdown the computer");
-    vprintln!("  time     - Displays current time");
-    vprintln!("  version  - Display the current version of EclipseOS");
-    vprintln!("  express  - Activates the express text editor");
-    vprintln!("  test     - Test the express text editor");
+    println!("Available commands:");
+    println!("  about    - Display information about EclipseS");
+    println!("  clear    - Clear the screen");
+    println!("  ls       - Lists the contents of a directory");
+    println!("  echo     - Display a line of text");
+    println!("  hello    - Displays \"Hello\"");
+    println!("  help     - Display this help message");
+    println!("  shutdown - Shutsdown the computer");
+    println!("  time     - Displays current time");
+    println!("  version  - Display the current version of EclipseOS");
+    println!("  express  - Activates the express text editor");
+    println!("  test     - Test the express text editor");
 }
 
 pub fn test() {
@@ -86,16 +85,16 @@ pub fn time() {
     let time_str = time::format_time();
     let date_str = time::format_date();
 
-    vprintln!("current date: {}!",date_str);
-    vprintln!("current time: {}!",time_str);
+    println!("current date: {}!",date_str);
+    println!("current time: {}!",time_str);
 }
 
 pub fn version() {
-    vprintln!("EclipseOS v0.1.0");
+    println!("EclipseOS v0.1.0");
 }
 
 pub fn halt() {
-    vprintln!("System halted.");
+    println!("System halted.");
     loop {
         x86_64::instructions::hlt();
     }

@@ -1,8 +1,7 @@
 pub mod commands;
 
 use alloc::string::String;
-use crate::video_buffer;
-use crate::{vprint, vprintln, QemuExitCode, exit_qemu};
+use crate::{print, println, vga_buffer, QemuExitCode, exit_qemu};
 
 pub struct Shell {
     input_buffer: String,
@@ -20,9 +19,9 @@ impl Shell {
     pub fn process_keypress(&mut self, c: char) {
         match c {
             '\n' => {
-                vprintln!();
+                println!();
                 self.execute_command();
-                vprint!("eclipse> ");
+                print!("eclipse> ");
                 self.input_buffer.clear();
                 self.cursor_position = 0;
             }
@@ -30,13 +29,13 @@ impl Shell {
                 if self.cursor_position > 0 {
                     self.input_buffer.remove(self.cursor_position - 1);
                     self.cursor_position -= 1;
-                    video_buffer::backspace();
+                    vga_buffer::backspace();
                 }
             }
             c if c.is_ascii() && !c.is_control() => {
                 self.input_buffer.insert(self.cursor_position, c);
                 self.cursor_position += 1;
-                vprint!("{}", c);
+                print!("{}", c);
             }
             _ => {}
         }
@@ -64,13 +63,13 @@ impl Shell {
             "test" => commands::test(),
             "express" => commands::express(),
             "halt" => commands::halt(),
-            _ => vprintln!("Unknown command: {}. Type 'help' for available commands.", command),
+            _ => println!("Unknown command: {}. Type 'help' for available commands.", command),
         }
     }
 
     pub fn start(&mut self) {
-        vprintln!("EclipseOS Shell v0.1.0");
-        vprintln!("Type 'help' for available commands.");
-        vprint!("eclipse> ");
+        println!("EclipseOS Shell v0.1.0");
+        println!("Type 'help' for available commands.");
+        print!("eclipse> ");
     }
 }

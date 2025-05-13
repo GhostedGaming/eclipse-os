@@ -6,7 +6,7 @@ use crate::intereperter::components::ops;
 use crate::intereperter::components::parser;
 use crate::intereperter::components::tokens;
 use crate::text_editor::express_editor::test;
-use crate::{vprintln};
+use crate::{println};
 use alloc::string::String;
 use alloc::vec::Vec;
 
@@ -19,7 +19,7 @@ pub use tokens::*;
 
 pub fn run_example() {
     let input = test();
-    vprintln!("Input:\n{}", input);
+    println!("Input:\n{}", input);
 
     // Reset the global environment
     *GLOBAL_ENV.lock() = Environment::new();
@@ -71,15 +71,15 @@ pub fn run_example() {
 
     // Evaluate each code block
     for block in code_blocks {
-        vprintln!("Evaluating: {}", block);
+        println!("Evaluating: {}", block);
 
         // Tokenize and parse the block
         let tokens = lexer(&block);
         let mut parser = Parser::new(tokens);
         let result = parser.parse();
-        vprintln!("Result: {}", result);
+        println!("Result: {}", result);
 
-        vprintln!("---");
+        println!("---");
     }
 }
 

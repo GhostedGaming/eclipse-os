@@ -1,13 +1,10 @@
-use crate::{print, println, shell, vga_buffer};
-use crate::vga_buffer::WRITER;
-use alloc::string::ToString;
-use conquer_once::spin::OnceCell;
 use crate::shell::Shell;
 use crate::text_editor::express_editor::{self, Data};
+use crate::vga_buffer::WRITER;
+use crate::{print, println, vga_buffer};
+use alloc::string::ToString;
 use alloc::sync::Arc;
-use spin::Mutex;
-use lazy_static::lazy_static;
-use crate::{vprint, vprintln};
+use conquer_once::spin::OnceCell;
 use core::{
     pin::Pin,
     task::{Context, Poll},
@@ -17,7 +14,9 @@ use futures_util::{
     stream::{Stream, StreamExt},
     task::AtomicWaker,
 };
-use pc_keyboard::{layouts, DecodedKey, HandleControl, KeyCode, KeyState, Keyboard, ScancodeSet1};
+use lazy_static::lazy_static;
+use pc_keyboard::{DecodedKey, HandleControl, KeyCode, KeyState, Keyboard, ScancodeSet1, layouts};
+use spin::Mutex;
 
 // Static queue to store keyboard scancodes
 // OnceCell ensures it's initialized only once
@@ -96,7 +95,7 @@ impl Stream for ScancodeStream {
 
         // Register the waker to be notified when a new scancode arrives
         WAKER.register(&cx.waker());
-        
+
         // Check again in case a scancode arrived after we checked but before we registered the waker
         match queue.pop() {
             Some(scancode) => {
@@ -116,7 +115,7 @@ impl Stream for ScancodeStream {
 pub async fn print_keypresses() {
     // Create a new scancode stream
     let mut scancodes = ScancodeStream::new();
-    
+
     // Create a new keyboard with US layout and ignore control characters
     let mut keyboard = Keyboard::new(
         ScancodeSet1::new(),
@@ -136,13 +135,13 @@ pub async fn print_keypresses() {
             match key_event.code {
                 KeyCode::LShift | KeyCode::RShift => {
                     shift_pressed = key_event.state == KeyState::Down;
-                },
+                }
                 KeyCode::LControl | KeyCode::RControl => {
                     ctrl_pressed = key_event.state == KeyState::Down;
-                },
+                }
                 _ => {}
             }
-            
+
             // Process the key event to get a decoded key
             if let Some(key) = keyboard.process_keyevent(key_event) {
                 match key {
@@ -154,20 +153,25 @@ pub async fn print_keypresses() {
                             continue;
                         }
 
+                        if express_editor::EDITOR_DATA.lock().active {
+                            express_editor::process_editor_key(character);
+                            continue; // Don't send to shell
+                        }
+
                         match character {
                             // Handle backspace (0x08) or delete (0x7F)
                             '\u{0008}' | '\u{007F}' => {
                                 // Pass to shell for processing
                                 SHELL.lock().process_keypress('\u{8}');
-                            },
+                            }
                             // Handle tab (0x09)
                             '\u{0009}' => {
-                                vprint!("    ");
-                            },
+                                print!("    ");
+                            }
                             // Handle escape (0x1B)
                             '\u{001B}' => {
                                 // Currently just removes the escape character
-                            },
+                            }
                             // Handle all other printable characters
                             _ => {
                                 let column_pos = WRITER.lock().column_position();
@@ -180,7 +184,7 @@ pub async fn print_keypresses() {
                                 }
                             }
                         }
-                    },
+                    }
                     // Handle raw key codes
                     DecodedKey::RawKey(key) => {
                         let editor_data = express_editor::EDITOR_DATA.lock();
@@ -193,15 +197,15 @@ pub async fn print_keypresses() {
                             // Handle backspace key
                             KeyCode::Backspace => {
                                 SHELL.lock().process_keypress('\u{8}');
-                            },
+                            }
                             // Handle delete key
                             KeyCode::Delete => {
                                 SHELL.lock().process_keypress('\u{8}');
-                            },
+                            }
                             // Handle tab key (insert 4 spaces)
                             KeyCode::Tab => {
-                                vprint!("    ");
-                            },
+                                print!("    ");
+                            }
                             // Handle OEM7 key (backslash or pipe with shift)
                             KeyCode::Oem7 => {
                                 if shift_pressed {
@@ -209,39 +213,32 @@ pub async fn print_keypresses() {
                                 } else {
                                     SHELL.lock().process_keypress('\\');
                                 }
-                            },
+                            }
 
                             // Modifier keys (no visible output)
-                            KeyCode::LShift | KeyCode::RShift |
-                            KeyCode::LControl | KeyCode::RControl |
-                            KeyCode::LAlt | KeyCode::RAltGr => {},
-                            
+                            KeyCode::LShift
+                            | KeyCode::RShift
+                            | KeyCode::LControl
+                            | KeyCode::RControl
+                            | KeyCode::LAlt
+                            | KeyCode::RAltGr => {}
+
                             // Navigation keys (no visible output currently)
                             KeyCode::ArrowUp => {
-                                let editor_data = Data { active: true, text: "".to_string() };
-                                if editor_data.active {
-                                    vga_buffer::move_cursor_up(1);
-                                } else {
-
-                                }
-                            },
+                                
+                            }
                             KeyCode::ArrowDown => {
-                                let editor_data = Data { active: true, text: "".to_string() };
-                                if editor_data.active {
-                                    vga_buffer::move_cursor_up(1);
-                                } else {
 
-                                }
-                            },
-                            KeyCode::ArrowLeft => {},
-                            KeyCode::ArrowRight => {},
-                            KeyCode::Escape => {},
-                            KeyCode::Home => {},
-                            KeyCode::PageUp => {},
-                            KeyCode::PageDown => {},
-                            KeyCode::CapsLock => {},
+                            }
+                            KeyCode::ArrowLeft => {}
+                            KeyCode::ArrowRight => {}
+                            KeyCode::Escape => {}
+                            KeyCode::Home => {}
+                            KeyCode::PageUp => {}
+                            KeyCode::PageDown => {}
+                            KeyCode::CapsLock => {}
 
-                            _ => {},
+                            _ => {}
                         }
                     }
                 }

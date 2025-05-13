@@ -22,7 +22,6 @@ pub mod fs;
 pub mod sounds;
 pub mod text_editor;
 pub mod intereperter;
-pub mod video_buffer;
 
 pub fn init() {
     gdt::init();
