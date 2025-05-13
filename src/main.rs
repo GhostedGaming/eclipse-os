@@ -108,7 +108,6 @@ async fn example_task() {
     let success = number == 42;
     print_status(&format!("Async Number [{}]", number), if success { Ok(()) } else { Err(()) });
     print_ascii();
-    run_example();
 }
 
 fn print_ascii() {
