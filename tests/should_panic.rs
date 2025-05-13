@@ -13,7 +13,7 @@ pub extern "C" fn _start() -> ! {
 }
 
 fn should_fail() {
-    serial_vprint!("should_panic::should_fail...\t");
+    serial_print!("should_panic::should_fail...\t");
     assert_eq!(0, 1);
 }
 

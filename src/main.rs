@@ -59,21 +59,21 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
 /// Helper function to print status messages with consistent formatting
 fn print_status(component: &str, result: Result<(), ()>) {
-    vvprint!("{} [", component);
+    vprint!("{} [", component);
 
     match result {
         Ok(_) => {
             video_buffer::set_color(Color::Green, Color::Black);
-            vvprint!("OK");
+            vprint!("OK");
         }
         Err(_) => {
             video_buffer::set_color(Color::Red, Color::Black);
-            vvprint!("FAIL");
+            vprint!("FAIL");
         }
     }
 
     video_buffer::set_color(Color::White, Color::Black);
-    vvprint!("]\n");
+    vprint!("]\n");
 }
 
 /// Perform trivial assertion and return success status

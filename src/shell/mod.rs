@@ -2,7 +2,7 @@ pub mod commands;
 
 use alloc::string::String;
 use crate::video_buffer;
-use crate::{print, println, QemuExitCode, exit_qemu};
+use crate::{vprint, vprintln, QemuExitCode, exit_qemu};
 
 pub struct Shell {
     input_buffer: String,
@@ -20,7 +20,7 @@ impl Shell {
     pub fn process_keypress(&mut self, c: char) {
         match c {
             '\n' => {
-                println!();
+                vprintln!();
                 self.execute_command();
                 vprint!("eclipse> ");
                 self.input_buffer.clear();
@@ -64,13 +64,13 @@ impl Shell {
             "test" => commands::test(),
             "express" => commands::express(),
             "halt" => commands::halt(),
-            _ => println!("Unknown command: {}. Type 'help' for available commands.", command),
+            _ => vprintln!("Unknown command: {}. Type 'help' for available commands.", command),
         }
     }
 
     pub fn start(&mut self) {
-        println!("EclipseOS Shell v0.1.0");
-        println!("Type 'help' for available commands.");
+        vprintln!("EclipseOS Shell v0.1.0");
+        vprintln!("Type 'help' for available commands.");
         vprint!("eclipse> ");
     }
 }

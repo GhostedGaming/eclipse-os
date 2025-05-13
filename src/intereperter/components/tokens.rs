@@ -1,6 +1,6 @@
 use alloc::{string::{String, ToString}, vec::Vec};
 
-use crate::println;
+use crate::vprintln;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Tokens {
@@ -137,7 +137,7 @@ pub fn lexer(src: &str) -> Vec<Tokens> {
                     tokens.push(Tokens::And);
                 } else {
                     // Handle unexpected character
-                    println!("Unexpected character: &");
+                    vprintln!("Unexpected character: &");
                 }
             }
             '|' => {
@@ -146,7 +146,7 @@ pub fn lexer(src: &str) -> Vec<Tokens> {
                     tokens.push(Tokens::Or);
                 } else {
                     // Handle unexpected character
-                    println!("Unexpected character: |");
+                    vprintln!("Unexpected character: |");
                 }
             }
             '"' => {
@@ -200,7 +200,7 @@ pub fn lexer(src: &str) -> Vec<Tokens> {
             }
             _ => {
                 // Handle unexpected characters
-                println!("Unexpected character: {}", ch);
+                vprintln!("Unexpected character: {}", ch);
             }
         }
     }

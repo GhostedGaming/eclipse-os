@@ -3,9 +3,8 @@ use core::str::SplitWhitespace;
 use crate::{vprintln, QemuExitCode, exit_qemu};
 use crate::video_buffer::{self, Color, clear_screen};
 use crate::time;
-use crate::fs;
 use crate::shutdown;
-use crate::text_editor::{self, express_editor};
+use crate::text_editor::express_editor;
 use crate::intereperter::run::run_example;
 
 pub fn about() {
