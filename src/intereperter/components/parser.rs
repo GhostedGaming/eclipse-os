@@ -360,6 +360,54 @@ impl Parser {
             return last_value;
         }
 
+        // --- FOR LOOP SUPPORT ---
+        if matches!(self.peek(0), Tokens::For) {
+            self.advance();
+            if !matches!(self.advance(), Tokens::LeftParen) {
+                println!("Expected '(' after 'for'");
+                return 0.0;
+            }
+            // Parse: for (init; cond; incr)
+            // Save positions for each part
+            let init_pos = self.current;
+            self.statement(); // Initialization
+            if !matches!(self.peek(0), Tokens::Semicolon) {
+                println!("Expected ';' after for-init");
+                return 0.0;
+            }
+            self.advance();
+            let cond_pos = self.current;
+            let mut condition = self.expression(); // Condition
+            if !matches!(self.peek(0), Tokens::Semicolon) {
+                println!("Expected ';' after for-condition");
+                return 0.0;
+            }
+            self.advance();
+            let incr_pos = self.current;
+            self.statement(); // Increment
+            if !matches!(self.peek(0), Tokens::RightParen) {
+                println!("Expected ')' after for-increment");
+                return 0.0;
+            }
+            self.advance();
+            if !matches!(self.advance(), Tokens::LeftBrace) {
+                println!("Expected '{{' after for loop header");
+                return 0.0;
+            }
+            let body_pos = self.current;
+            let mut last_value = 0.0;
+            while condition != 0.0 {
+                last_value = self.block();
+                self.current = incr_pos;
+                self.statement(); // Increment
+                self.current = cond_pos;
+                condition = self.expression();
+                self.current = body_pos;
+            }
+            self.skip_block();
+            return last_value;
+        }
+
         if let Tokens::Identifier(name) = self.peek(0).clone() {
             if let Tokens::Assign = self.peek(1) {
                 if GLOBAL_ENV.lock().get(&name).is_none() {
