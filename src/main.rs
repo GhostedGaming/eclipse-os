@@ -16,6 +16,7 @@ use core::panic::PanicInfo;
 use eclipse_os::time;
 use eclipse_os::vga_buffer::{self, Color, CursorStyle};
 use eclipse_os::{print, println};
+use eclipse_os::coms::init_ports;
 
 entry_point!(kernel_main);
 
@@ -47,6 +48,8 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     // Initialize time
     print_status("Time Initialization", initiate_time());
 
+    print_status("Initiating Com Ports", init_com_ports());
+
     #[cfg(test)]
     test_main();
 
@@ -56,6 +59,11 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     executor.spawn(Task::new(keyboard::print_keypresses()));
     executor.spawn(Task::new(time::time_sync_task()));
     executor.run();
+}
+
+fn init_com_ports() -> Result<(), ()> {
+    init_ports();
+    Ok(())
 }
 
 /// Helper function to print status messages with consistent formatting
