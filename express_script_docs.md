@@ -2,6 +2,8 @@
 
 Welcome to the documentation for **Express Script**, the custom programming language for Eclipse OS.
 
+If you would like more addition feel free to ask!
+
 ---
 
 ## Table of Contents
