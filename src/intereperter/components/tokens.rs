@@ -9,6 +9,7 @@ pub enum Tokens {
     Asm,
     Let,
     Fn,
+    For,
     If,
     Else,
     While,
@@ -195,6 +196,7 @@ pub fn lexer(src: &str) -> Vec<Tokens> {
                     "print" => tokens.push(Tokens::Print),
                     "println" => tokens.push(Tokens::Println),
                     "asm" => tokens.push(Tokens::Asm),
+                    "for" => tokens.push(Tokens::For),
                     _ => tokens.push(Tokens::Identifier(identifier)),
                 }
             }
