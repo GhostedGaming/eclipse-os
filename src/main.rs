@@ -5,14 +5,13 @@
 #![reexport_test_harness_main = "test_main"]
 
 extern crate alloc;
-
 use alloc::format;
-// use eclipse_os::{println, print};
-use eclipse_os::task::{Task, executor::Executor, keyboard};
-use bootloader::{BootInfo, entry_point};
-use core::panic::PanicInfo;
-// use eclipse_os::vga_buffer::{self, Color, CursorStyle}; 
 
+use bootloader::{BootInfo, entry_point};
+
+use core::panic::PanicInfo;
+
+use eclipse_os::task::{Task, executor::Executor, keyboard};
 use eclipse_os::time;
 use eclipse_os::vga_buffer::{self, Color, CursorStyle};
 use eclipse_os::{print, println, port_println};
@@ -61,11 +60,8 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 }
 
 fn test_port_print() -> Result<(), ()> {
-    // Use the port_println! macro to print a test message to the serial port
     port_println!("Test message from Eclipse OS!");
 
-    // If you want to check for success, you could add logic here.
-    // For now, just return Ok(()) to indicate the function ran.
     Ok(())
 }
 

@@ -367,9 +367,6 @@ impl Parser {
                 println!("Expected '(' after 'for'");
                 return 0.0;
             }
-            // Parse: for (init; cond; incr)
-            // Save positions for each part
-            let init_pos = self.current;
             self.statement(); // Initialization
             if !matches!(self.peek(0), Tokens::Semicolon) {
                 println!("Expected ';' after for-init");
@@ -504,7 +501,6 @@ impl Parser {
         if let Tokens::Identifier(name) = self.peek(0).clone() {
             if let Tokens::Assign = self.peek(1) {
                 if GLOBAL_ENV.lock().get(&name).is_none() {
-                    let var_name = name;
                     self.advance();
                     self.advance();
                     let value = self.expression();

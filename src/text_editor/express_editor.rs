@@ -3,7 +3,6 @@ use crate::println;
 extern crate alloc;
 use lazy_static::lazy_static;
 use spin::Mutex;
-use crate::alloc::string::ToString;
 
 /// A struct to represent editor data.
 pub struct Data {
@@ -40,12 +39,12 @@ pub fn init_editor() {
     crate::vga_buffer::clear_screen();
     crate::vga_buffer::set_cursor_visibility(true);
     crate::vga_buffer::set_cursor_style(crate::vga_buffer::CursorStyle::Block);
-    println!("-- EXPRESS EDITOR -- (Ctrl+C to exit)");
+    println!("-- EXPRESS EDITOR --");
+    println!("(Ctrl+C to exit)");
 }
 
-/// (Optional) Any setup code you want to run before editing.
 pub fn init_setup() {
-    // You can leave this empty or add setup logic if needed
+    
 }
 
 /// Handles a single character input in the editor.

@@ -45,16 +45,6 @@ pub enum Tokens {
     EOF,
 }
 
-// Define a structure to represent a function
-#[derive(Clone)]
-struct Function {
-    name: String,
-    parameters: Vec<String>,
-    body_tokens: Vec<Tokens>,
-    body_start: usize,
-    body_end: usize,
-}
-
 pub fn lexer(src: &str) -> Vec<Tokens> {
     let mut tokens = Vec::new();
     let mut chars = src.chars().peekable();
