@@ -1,9 +1,9 @@
 use crate::sounds;
-use crate::text_editor::express_editor::EDITOR_DATA;
 use core::fmt;
 use lazy_static::lazy_static;
 use spin::Mutex;
 use volatile::Volatile;
+use crate::text_editor::express_editor::EDITOR_DATA;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CursorStyle {
@@ -14,11 +14,11 @@ pub enum CursorStyle {
 
 lazy_static! {
     pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
-        row_position: 0,
         column_position: 0,
         color_code: ColorCode::new(Color::White, Color::Black),
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
         cursor_visible: true,
+        cursor_color: ColorCode::new(Color::Black, Color::LightGray),
         cursor_style: CursorStyle::Block,
         saved_cursor_char: None,
     });
@@ -112,11 +112,11 @@ struct Buffer {
 /// Wraps lines at `BUFFER_WIDTH`. Supports newline characters and implements the
 /// `core::fmt::Write` trait.
 pub struct Writer {
-    row_position: usize,
     column_position: usize,
     color_code: ColorCode,
     buffer: &'static mut Buffer,
     cursor_visible: bool,
+    cursor_color: ColorCode,
     cursor_style: CursorStyle,
     saved_cursor_char: Option<ScreenChar>, // Store the char under the cursor
 }
@@ -126,23 +126,18 @@ impl Writer {
         self.color_code = ColorCode::new(foreground, background);
     }
 
-    pub fn set_background_color(&mut self, background: Color) {
-        self.color_code = ColorCode::new(Color::White, background);
-    }
-
     pub fn write_byte(&mut self, byte: u8) {
+        // Erase cursor before writing
         self.erase_cursor();
 
         match byte {
-            b'\n' => {
-                self.new_line();
-            }
+            b'\n' => self.new_line(),
             byte => {
                 if self.column_position >= BUFFER_WIDTH {
                     self.new_line();
                 }
 
-                let row = self.row_position;
+                let row = BUFFER_HEIGHT - 1;
                 let col = self.column_position;
 
                 let color_code = self.color_code;
@@ -151,13 +146,10 @@ impl Writer {
                     color_code,
                 });
                 self.column_position += 1;
-
-                if self.column_position >= BUFFER_WIDTH {
-                    self.new_line();
-                }
             }
         }
 
+        // Draw cursor after writing
         if self.cursor_visible {
             self.draw_cursor();
         }
@@ -181,19 +173,14 @@ impl Writer {
 
     /// Shifts all lines one line up and clears the last row.
     fn new_line(&mut self) {
-        if self.row_position < BUFFER_HEIGHT - 1 {
-            self.row_position += 1;
-            self.column_position = 0;
-        } else {
-            for row in 1..BUFFER_HEIGHT {
-                for col in 0..BUFFER_WIDTH {
-                    let character = self.buffer.chars[row][col].read();
-                    self.buffer.chars[row - 1][col].write(character);
-                }
+        for row in 1..BUFFER_HEIGHT {
+            for col in 0..BUFFER_WIDTH {
+                let character = self.buffer.chars[row][col].read();
+                self.buffer.chars[row - 1][col].write(character);
             }
-            self.clear_row(BUFFER_HEIGHT - 1);
-            self.column_position = 0;
         }
+        self.clear_row(BUFFER_HEIGHT - 1);
+        self.column_position = 0;
     }
 
     /// Clears a row by overwriting it with blank characters.
@@ -246,33 +233,22 @@ impl Writer {
         }
     }
 
-    pub fn cursor_position(&self) -> (usize, usize) {
-        (self.row_position, self.column_position)
-    }
-
     pub fn draw_cursor(&mut self) {
-        let row = self.row_position;
+        let row = BUFFER_HEIGHT - 1;
         let col = self.column_position;
-        if col >= BUFFER_WIDTH || row >= BUFFER_HEIGHT {
+        if col >= BUFFER_WIDTH {
             return;
         }
 
+        // Save the current character under the cursor if not already saved
         if self.saved_cursor_char.is_none() {
-            let existing_char = self.buffer.chars[row][col].read();
-            let actual_char = if existing_char.ascii_character == 0 {
-                ScreenChar {
-                    ascii_character: b' ',
-                    color_code: self.color_code,
-                }
-            } else {
-                existing_char
-            };
-            self.saved_cursor_char = Some(actual_char);
+            self.saved_cursor_char = Some(self.buffer.chars[row][col].read());
         }
-
         let current_char = self.saved_cursor_char.unwrap();
+
         let cursor_char = match self.cursor_style {
             CursorStyle::Block | CursorStyle::Invert => {
+                // Invert foreground and background colors
                 let fg = current_char.color_code.bg();
                 let bg = current_char.color_code.fg();
                 ScreenChar {
@@ -281,6 +257,7 @@ impl Writer {
                 }
             }
             CursorStyle::Underline => {
+                // Use a different foreground color for underline effect (e.g., Yellow)
                 let mut underline_code = current_char.color_code;
                 underline_code.0 = (underline_code.0 & 0xF0) | (Color::Yellow as u8);
                 ScreenChar {
@@ -293,39 +270,14 @@ impl Writer {
         self.buffer.chars[row][col].write(cursor_char);
     }
 
+    /// Erases the cursor by restoring the original character
     pub fn erase_cursor(&mut self) {
-        let row = self.row_position;
+        let row = BUFFER_HEIGHT - 1;
         let col = self.column_position;
-        if col < BUFFER_WIDTH && row < BUFFER_HEIGHT {
+        if col < BUFFER_WIDTH {
             if let Some(orig) = self.saved_cursor_char.take() {
                 self.buffer.chars[row][col].write(orig);
             }
-        }
-    }
-
-    pub fn move_cursor_left(&mut self) {
-        self.erase_cursor();
-        if self.column_position > 0 {
-            self.column_position -= 1;
-        } else if self.row_position > 0 {
-            self.row_position -= 1;
-            self.column_position = BUFFER_WIDTH - 1;
-        }
-        if self.cursor_visible {
-            self.draw_cursor();
-        }
-    }
-
-    pub fn move_cursor_right(&mut self) {
-        self.erase_cursor();
-        if self.column_position < BUFFER_WIDTH - 1 {
-            self.column_position += 1;
-        } else if self.row_position < BUFFER_HEIGHT - 1 {
-            self.row_position += 1;
-            self.column_position = 0;
-        }
-        if self.cursor_visible {
-            self.draw_cursor();
         }
     }
 
@@ -461,20 +413,6 @@ pub fn clear_screen() {
         if writer.cursor_visible {
             writer.draw_cursor();
         }
-    });
-}
-
-pub fn move_cursor_left() {
-    use x86_64::instructions::interrupts;
-    interrupts::without_interrupts(|| {
-        WRITER.lock().move_cursor_left();
-    });
-}
-
-pub fn move_cursor_right() {
-    use x86_64::instructions::interrupts;
-    interrupts::without_interrupts(|| {
-        WRITER.lock().move_cursor_right();
     });
 }
 

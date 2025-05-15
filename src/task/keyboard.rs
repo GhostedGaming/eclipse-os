@@ -36,7 +36,7 @@ pub fn init_shell() {
 ///
 /// Must not block or allocate.
 
-pub fn cursor() {
+pub fn cursror() {
     vga_buffer::set_cursor_visibility(true);
     vga_buffer::set_cursor_style(vga_buffer::CursorStyle::Underline);
 }
@@ -203,7 +203,7 @@ pub async fn print_keypresses() {
                             }
                             // Handle tab key (insert 4 spaces)
                             KeyCode::Tab => {
-                                print!("   ");
+                                print!("    ");
                             }
                             // Handle OEM7 key (backslash or pipe with shift)
                             KeyCode::Oem7 => {
@@ -224,26 +224,13 @@ pub async fn print_keypresses() {
 
                             // Navigation keys (no visible output currently)
                             KeyCode::ArrowUp => {
-                                // vga_buffer::move_cursor_up(1);
-                            }
-                            KeyCode::ArrowLeft => {
-                                let editor_active = express_editor::EDITOR_DATA.lock().active;
-                                if editor_active {
-                                    vga_buffer::move_cursor_left();
-                                }
-                            }
-                            KeyCode::ArrowRight => {
-                                let editor_active = express_editor::EDITOR_DATA.lock().active;
-                                if editor_active {
-                                    vga_buffer::move_cursor_right();
-                                }
+                                
                             }
                             KeyCode::ArrowDown => {
-                                let editor_active = express_editor::EDITOR_DATA.lock().active;
-                                if editor_active {
-                                    //vga_buffer::move_cursor_down(1);
-                                }
+
                             }
+                            KeyCode::ArrowLeft => {}
+                            KeyCode::ArrowRight => {}
                             KeyCode::Escape => {}
                             KeyCode::Home => {}
                             KeyCode::PageUp => {}
