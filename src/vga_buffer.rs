@@ -98,9 +98,12 @@ struct ScreenChar {
 }
 
 /// The height of the text buffer (normally 25 lines).
-const BUFFER_HEIGHT: usize = 25;
+/// Making this public so it can be accessed from other modules
+pub const BUFFER_HEIGHT: usize = 25;
+
 /// The width of the text buffer (normally 80 columns).
-const BUFFER_WIDTH: usize = 80;
+/// Making this public so it can be accessed from other modules
+pub const BUFFER_WIDTH: usize = 80;
 
 /// A structure representing the VGA text buffer.
 #[repr(transparent)]
@@ -303,10 +306,11 @@ impl Writer {
         }
     }
 
-    /// Moves the cursor to a new position
+    /// Moves the cursor to a new position with bounds checking
     pub fn move_cursor(&mut self, new_col: usize) {
         self.erase_cursor();
-        self.column_position = new_col;
+        // FIXED: Ensure the new position is within bounds
+        self.column_position = new_col.min(BUFFER_WIDTH - 1);
         if self.cursor_visible {
             self.draw_cursor();
         }
@@ -412,6 +416,33 @@ pub fn clear_screen() {
         writer.column_position = 0;
         if writer.cursor_visible {
             writer.draw_cursor();
+        }
+    });
+}
+
+// NEW: Helper methods for cursor movement with bounds checking
+// These are safer to use from other modules
+
+/// Safely move the cursor left by one position, if possible
+pub fn move_cursor_left() {
+    use x86_64::instructions::interrupts;
+    interrupts::without_interrupts(|| {
+        let mut writer = WRITER.lock();
+        let col = writer.column_position();
+        if col > 0 {
+            writer.move_cursor(col - 1);
+        }
+    });
+}
+
+/// Safely move the cursor right by one position, if possible
+pub fn move_cursor_right() {
+    use x86_64::instructions::interrupts;
+    interrupts::without_interrupts(|| {
+        let mut writer = WRITER.lock();
+        let col = writer.column_position();
+        if col < BUFFER_WIDTH - 1 {
+            writer.move_cursor(col + 1);
         }
     });
 }

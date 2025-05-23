@@ -5,7 +5,7 @@ use crate::intereperter::components::env;
 use crate::intereperter::components::ops;
 use crate::intereperter::components::parser;
 use crate::intereperter::components::tokens;
-use crate::text_editor::express_editor::test;
+use crate::text_editor::express_editor::get_text;
 use crate::{println};
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -18,7 +18,7 @@ pub use tokens::*;
 // Parser for expressions with precedence
 
 pub fn run_example() {
-    let input = test();
+    let input = get_text();
     println!("Input:\n{}", input);
 
     // Reset the global environment

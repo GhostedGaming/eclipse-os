@@ -36,11 +36,6 @@ pub fn init_shell() {
 ///
 /// Must not block or allocate.
 
-pub fn cursror() {
-    vga_buffer::set_cursor_visibility(true);
-    vga_buffer::set_cursor_style(vga_buffer::CursorStyle::Underline);
-}
-
 pub(crate) fn add_scancode(scancode: u8) {
     // Try to get the scancode queue
     if let Ok(queue) = SCANCODE_QUEUE.try_get() {
@@ -222,15 +217,35 @@ pub async fn print_keypresses() {
                             | KeyCode::LAlt
                             | KeyCode::RAltGr => {}
 
-                            // Navigation keys (no visible output currently)
                             KeyCode::ArrowUp => {
-                                
+                                // Safety check - only process in editor mode
+                                let editor_data_active = express_editor::EDITOR_DATA.lock().active;
+                                if editor_data_active {
+                                    express_editor::move_cursor_up();
+                                }
                             }
                             KeyCode::ArrowDown => {
-
+                                // Safety check - only process in editor mode
+                                let editor_data_active = express_editor::EDITOR_DATA.lock().active;
+                                if editor_data_active {
+                                    express_editor::move_cursor_down();
+                                }
                             }
-                            KeyCode::ArrowLeft => {}
-                            KeyCode::ArrowRight => {}
+                            KeyCode::ArrowLeft => {
+                                // Safety check - only process in editor mode
+                                let editor_data_active = express_editor::EDITOR_DATA.lock().active;
+                                if editor_data_active {
+                                    express_editor::move_cursor_left();
+                                }
+                            }
+                            KeyCode::ArrowRight => {
+                                // Safety check - only process in editor mode
+                                let editor_data_active = express_editor::EDITOR_DATA.lock().active;
+                                if editor_data_active {
+                                    express_editor::move_cursor_right();
+                                }
+                            }
+
                             KeyCode::Escape => {}
                             KeyCode::Home => {}
                             KeyCode::PageUp => {}
