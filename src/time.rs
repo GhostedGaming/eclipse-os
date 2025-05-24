@@ -101,19 +101,8 @@ pub fn get_uptime_seconds() -> u64 {
 
 // Time sync task for your async executor
 pub async fn time_sync_task() {
-    let mut last_second = 0;
-    
     loop {
-        let uptime_seconds = get_uptime_seconds();
-        
-        if uptime_seconds != last_second && uptime_seconds % 5 == 0 {
-            // Update time display every 5 seconds
-            let current_time = get_current_time();
-            crate::println!("Current time: {} | Uptime: {}s", current_time, uptime_seconds);
-            last_second = uptime_seconds;
-        }
-        
-        // Yield to other tasks
+        // Just yield to other tasks, don't print anything automatically
         crate::task::yield_now().await;
     }
 }
