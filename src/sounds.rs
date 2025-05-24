@@ -52,7 +52,6 @@ pub fn play_beep_for(ticks: u32, freq: u32) {
 /// Call this from your timer interrupt handler
 pub fn beep_tick() {
     if BEEP_TICKS.load(Ordering::SeqCst) > 0 {
-        println!("beep_tick: {}", BEEP_TICKS.load(Ordering::SeqCst));
         if BEEP_TICKS.fetch_sub(1, Ordering::SeqCst) == 1 {
             stop_sound();
         }

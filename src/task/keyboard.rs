@@ -18,7 +18,6 @@ use pc_keyboard::{DecodedKey, HandleControl, KeyCode, KeyState, Keyboard, Scanco
 use spin::Mutex;
 
 // Static queue to store keyboard scancodes
-// OnceCell ensures it's initialized only once
 static SCANCODE_QUEUE: OnceCell<ArrayQueue<u8>> = OnceCell::uninit();
 
 // Atomic waker to notify the executor when new scancodes are available
@@ -33,37 +32,25 @@ pub fn init_shell() {
 }
 
 /// Called by the keyboard interrupt handler
-///
-/// Must not block or allocate.
-
 pub(crate) fn add_scancode(scancode: u8) {
-    // Try to get the scancode queue
     if let Ok(queue) = SCANCODE_QUEUE.try_get() {
-        // Try to push the scancode to the queue
         if let Err(_) = queue.push(scancode) {
-            // If the queue is full, print a warning
             println!("WARNING: scancode queue full; dropping keyboard input");
         } else {
-            // Wake up the task waiting for keyboard input
             WAKER.wake();
         }
     } else {
-        // If the queue is not initialized, print a warning
         println!("WARNING: scancode queue uninitialized");
     }
 }
 
 // Stream of scancodes from the keyboard
 pub struct ScancodeStream {
-    // Private field to prevent direct construction
     _private: (),
 }
 
 impl ScancodeStream {
-    // Create a new scancode stream
     pub fn new() -> Self {
-        // Initialize the scancode queue with a capacity of 100 scancodes
-        // This will panic if called more than once
         SCANCODE_QUEUE
             .try_init_once(|| ArrayQueue::new(100))
             .expect("ScancodeStream::new should only be called once");
@@ -71,61 +58,47 @@ impl ScancodeStream {
     }
 }
 
-// Implement the Stream trait for ScancodeStream
 impl Stream for ScancodeStream {
     type Item = u8;
 
-    // Poll for the next scancode
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<u8>> {
-        // Get the scancode queue
         let queue = SCANCODE_QUEUE
             .try_get()
             .expect("scancode queue not initialized");
 
-        // Fast path: check if there's a scancode available immediately
         if let Some(scancode) = queue.pop() {
             return Poll::Ready(Some(scancode));
         }
 
-        // Register the waker to be notified when a new scancode arrives
         WAKER.register(&cx.waker());
 
-        // Check again in case a scancode arrived after we checked but before we registered the waker
         match queue.pop() {
             Some(scancode) => {
-                // If we got a scancode, unregister the waker and return the scancode
                 WAKER.take();
                 Poll::Ready(Some(scancode))
             }
-            None => {
-                // If there's still no scancode, return Pending to indicate we need to be polled again
-                Poll::Pending
-            }
+            None => Poll::Pending,
         }
     }
 }
 
 // Async function to handle keyboard input and print keypresses
 pub async fn print_keypresses() {
-    // Create a new scancode stream
     let mut scancodes = ScancodeStream::new();
 
-    // Create a new keyboard with US layout and ignore control characters
     let mut keyboard = Keyboard::new(
         ScancodeSet1::new(),
         layouts::Us104Key,
         HandleControl::Ignore,
     );
 
-    // Track shift key state
+    // Track modifier key states
     let mut shift_pressed = false;
     let mut ctrl_pressed = false;
 
-    // Process scancodes as they arrive
     while let Some(scancode) = scancodes.next().await {
-        // Add the scancode to the keyboard and get a key event if available
         if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
-            // Update modifier key states based on key event
+            // Update modifier key states
             match key_event.code {
                 KeyCode::LShift | KeyCode::RShift => {
                     shift_pressed = key_event.state == KeyState::Down;
@@ -136,26 +109,132 @@ pub async fn print_keypresses() {
                 _ => {}
             }
 
+            // Only process key down events for most keys
+            if key_event.state == KeyState::Down {
+                // Handle special key combinations first
+                if ctrl_pressed {
+                    match key_event.code {
+                        KeyCode::C => {
+                            // Check if editor is active
+                            let editor_active = express_editor::EDITOR_DATA.lock().active;
+                            if editor_active {
+                                express_editor::exit_editor();
+                                continue;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+
+                // Handle arrow keys and special keys (regardless of editor state)
+                match key_event.code {
+                    KeyCode::ArrowLeft => {
+                        // Safety check - only process in editor mode
+                        let editor_data_active = express_editor::EDITOR_DATA.lock().active;
+                        if editor_data_active {
+                            express_editor::move_cursor_left();
+                        }
+                        continue;
+                    }
+                    KeyCode::ArrowRight => {
+                        // Safety check - only process in editor mode
+                        let editor_data_active = express_editor::EDITOR_DATA.lock().active;
+                        if editor_data_active {
+                            express_editor::move_cursor_right();
+                        }
+                        continue;
+                    }
+                    KeyCode::ArrowUp => {
+                        let editor_active = express_editor::EDITOR_DATA.lock().active;
+                        if editor_active {
+                            express_editor::move_cursor_up();
+                        } else {
+                            // In shell mode, move VGA cursor up
+                            vga_buffer::move_cursor_up(1);
+                        }
+                        continue;
+                    }
+                    KeyCode::ArrowDown => {
+                        let editor_active = express_editor::EDITOR_DATA.lock().active;
+                        if editor_active {
+                            express_editor::move_cursor_down();
+                        } else {
+                            // In shell mode, move VGA cursor down
+                            vga_buffer::move_cursor_down(1);
+                        }
+                        continue;
+                    }
+                    KeyCode::Home => {
+                        let editor_active = express_editor::EDITOR_DATA.lock().active;
+                        if editor_active {
+                            express_editor::move_to_line_start();
+                        } else {
+                            vga_buffer::move_cursor_to_start_of_line();
+                        }
+                        continue;
+                    }
+                    KeyCode::End => {
+                        let editor_active = express_editor::EDITOR_DATA.lock().active;
+                        if editor_active {
+                            express_editor::move_to_line_end();
+                        } else {
+                            vga_buffer::move_cursor_to_end_of_line();
+                        }
+                        continue;
+                    }
+                    KeyCode::PageUp => {
+                        let editor_active = express_editor::EDITOR_DATA.lock().active;
+                        if editor_active {
+                            // Move up multiple lines in editor
+                            for _ in 0..10 {
+                                express_editor::move_cursor_up();
+                            }
+                        } else {
+                            vga_buffer::move_cursor_up(10);
+                        }
+                        continue;
+                    }
+                    KeyCode::PageDown => {
+                        let editor_active = express_editor::EDITOR_DATA.lock().active;
+                        if editor_active {
+                            // Move down multiple lines in editor
+                            for _ in 0..10 {
+                                express_editor::move_cursor_down();
+                            }
+                        } else {
+                            vga_buffer::move_cursor_down(10);
+                        }
+                        continue;
+                    }
+                    _ => {}
+                }
+            }
+
             // Process the key event to get a decoded key
             if let Some(key) = keyboard.process_keyevent(key_event) {
                 match key {
                     // Handle Unicode characters
                     DecodedKey::Unicode(character) => {
-                        // Check for Ctrl+C combination
+                        // Check for Ctrl+C combination first
                         if ctrl_pressed && (character == 'c' || character == 'C') {
-                            express_editor::exit_editor();
-                            continue;
+                            let editor_active = express_editor::EDITOR_DATA.lock().active;
+                            if editor_active {
+                                express_editor::exit_editor();
+                                continue;
+                            }
                         }
 
-                        if express_editor::EDITOR_DATA.lock().active {
+                        // Check if editor is active
+                        let editor_active = express_editor::EDITOR_DATA.lock().active;
+                        if editor_active {
                             express_editor::process_editor_key(character);
                             continue; // Don't send to shell
                         }
 
+                        // Shell mode handling
                         match character {
                             // Handle backspace (0x08) or delete (0x7F)
                             '\u{0008}' | '\u{007F}' => {
-                                // Pass to shell for processing
                                 SHELL.lock().process_keypress('\u{8}');
                             }
                             // Handle tab (0x09)
@@ -168,12 +247,11 @@ pub async fn print_keypresses() {
                             }
                             // Handle all other printable characters
                             _ => {
-                                let column_pos = WRITER.lock().column_position();
+                                let column_pos = WRITER.lock().column_position;
 
                                 if column_pos > 78 {
                                     println!("\n");
                                 } else {
-                                    // Pass to shell for processing
                                     SHELL.lock().process_keypress(character);
                                 }
                             }
@@ -181,31 +259,55 @@ pub async fn print_keypresses() {
                     }
                     // Handle raw key codes
                     DecodedKey::RawKey(key) => {
-                        let editor_data = express_editor::EDITOR_DATA.lock();
-                        if ctrl_pressed && key == KeyCode::C && editor_data.active {
-                            express_editor::exit_editor();
-                            continue;
-                        }
-
                         match key {
                             // Handle backspace key
                             KeyCode::Backspace => {
-                                SHELL.lock().process_keypress('\u{8}');
+                                let editor_active = express_editor::EDITOR_DATA.lock().active;
+                                if editor_active {
+                                    express_editor::process_editor_key('\u{8}');
+                                } else {
+                                    SHELL.lock().process_keypress('\u{8}');
+                                }
                             }
                             // Handle delete key
                             KeyCode::Delete => {
-                                SHELL.lock().process_keypress('\u{8}');
+                                let editor_active = express_editor::EDITOR_DATA.lock().active;
+                                if editor_active {
+                                    express_editor::process_editor_key('\u{8}');
+                                } else {
+                                    SHELL.lock().process_keypress('\u{8}');
+                                }
                             }
                             // Handle tab key (insert 4 spaces)
                             KeyCode::Tab => {
-                                print!("    ");
+                                let editor_active = express_editor::EDITOR_DATA.lock().active;
+                                if editor_active {
+                                    // Insert 4 spaces in editor
+                                    for _ in 0..4 {
+                                        express_editor::process_editor_key(' ');
+                                    }
+                                } else {
+                                    print!("    ");
+                                }
+                            }
+                            // Handle Enter/Return key
+                            KeyCode::Return => {
+                                let editor_active = express_editor::EDITOR_DATA.lock().active;
+                                if editor_active {
+                                    express_editor::process_editor_key('\n');
+                                } else {
+                                    SHELL.lock().process_keypress('\n');
+                                }
                             }
                             // Handle OEM7 key (backslash or pipe with shift)
                             KeyCode::Oem7 => {
-                                if shift_pressed {
-                                    SHELL.lock().process_keypress('|');
+                                let editor_active = express_editor::EDITOR_DATA.lock().active;
+                                let char_to_insert = if shift_pressed { '|' } else { '\\' };
+                                
+                                if editor_active {
+                                    express_editor::process_editor_key(char_to_insert);
                                 } else {
-                                    SHELL.lock().process_keypress('\\');
+                                    SHELL.lock().process_keypress(char_to_insert);
                                 }
                             }
 
@@ -215,44 +317,27 @@ pub async fn print_keypresses() {
                             | KeyCode::LControl
                             | KeyCode::RControl
                             | KeyCode::LAlt
-                            | KeyCode::RAltGr => {}
-
-                            KeyCode::ArrowUp => {
-                                // Safety check - only process in editor mode
-                                let editor_data_active = express_editor::EDITOR_DATA.lock().active;
-                                if editor_data_active {
-                                    express_editor::move_cursor_up();
-                                }
-                            }
-                            KeyCode::ArrowDown => {
-                                // Safety check - only process in editor mode
-                                let editor_data_active = express_editor::EDITOR_DATA.lock().active;
-                                if editor_data_active {
-                                    express_editor::move_cursor_down();
-                                }
-                            }
-                            KeyCode::ArrowLeft => {
-                                // Safety check - only process in editor mode
-                                let editor_data_active = express_editor::EDITOR_DATA.lock().active;
-                                if editor_data_active {
-                                    express_editor::move_cursor_left();
-                                }
-                            }
-                            KeyCode::ArrowRight => {
-                                // Safety check - only process in editor mode
-                                let editor_data_active = express_editor::EDITOR_DATA.lock().active;
-                                if editor_data_active {
-                                    express_editor::move_cursor_right();
-                                }
+                            | KeyCode::RAltGr
+                            | KeyCode::CapsLock
+                            | KeyCode::Escape => {
+                                // These are handled elsewhere or ignored
                             }
 
-                            KeyCode::Escape => {}
-                            KeyCode::Home => {}
-                            KeyCode::PageUp => {}
-                            KeyCode::PageDown => {}
-                            KeyCode::CapsLock => {}
+                            // Arrow keys are handled above in the key_event.state == KeyState::Down block
+                            KeyCode::ArrowUp
+                            | KeyCode::ArrowDown
+                            | KeyCode::ArrowLeft
+                            | KeyCode::ArrowRight
+                            | KeyCode::Home
+                            | KeyCode::End
+                            | KeyCode::PageUp
+                            | KeyCode::PageDown => {
+                                // Already handled above
+                            }
 
-                            _ => {}
+                            _ => {
+                                // Unknown key, ignore
+                            }
                         }
                     }
                 }

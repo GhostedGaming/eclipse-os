@@ -4,6 +4,7 @@ use crate::println;
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Tokens {
+    // Keywords
     Print,
     Println,
     Input,
@@ -15,35 +16,61 @@ pub enum Tokens {
     Else,
     While,
     Return,
+    
+    // Time/Delay functions
+    Delay,
+    DelayMicroseconds,
+    DelayMilliseconds,
+    
+    // Literals
     True,
     False,
-    Increment,
-    Decrement,
     Identifier(String),
     Number(f64),
+    StringLiteral(String),
     String(String),
-    Plus,
-    Minus,
-    Multiply,
-    Divide,
-    Power,
-    Assign,
-    Equal,
-    NotEqual,
-    LessThan,
-    GreaterThan,
-    LessThanEqual,
-    GreaterThanEqual,
-    And,
-    Or,
-    Not,
-    LeftParen,
-    RightParen,
-    LeftBrace,
-    RightBrace,
-    Semicolon,
-    Comma,
+    
+    // Arithmetic Operators
+    Plus,           // +
+    Minus,          // -
+    Multiply,       // *
+    Divide,         // /
+    Power,          // **
+    Increment,      // ++
+    Decrement,      // --
+    
+    // Assignment
+    Assign,         // =
+    
+    // Comparison Operators
+    Equal,          // ==
+    NotEqual,       // !=
+    LessThan,       // <
+    GreaterThan,    // >
+    LessThanEqual,  // <=
+    GreaterThanEqual, // >=
+    
+    // Logical Operators
+    And,            // &&
+    Or,             // ||
+    Not,            // !
+    
+    // Delimiters
+    LeftParen,      // (
+    RightParen,     // )
+    LeftBrace,      // {
+    RightBrace,     // }
+    LeftBracket,    // [
+    RightBracket,   // ]
+    
+    // Punctuation
+    Semicolon,      // ;
+    Comma,          // ,
+    Dot,            // .
+    
+    // Special
     EOF,
+    Newline,
 }
 
 pub fn lexer(src: &str) -> Vec<Tokens> {

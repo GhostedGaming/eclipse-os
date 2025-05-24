@@ -15,6 +15,7 @@ pub enum CursorStyle {
 lazy_static! {
     pub static ref WRITER: Mutex<Writer> = Mutex::new(Writer {
         column_position: 0,
+        row_position: 0, // Start at top row like a normal terminal
         color_code: ColorCode::new(Color::White, Color::Black),
         buffer: unsafe { &mut *(0xb8000 as *mut Buffer) },
         cursor_visible: true,
@@ -98,11 +99,9 @@ struct ScreenChar {
 }
 
 /// The height of the text buffer (normally 25 lines).
-/// Making this public so it can be accessed from other modules
 pub const BUFFER_HEIGHT: usize = 25;
 
 /// The width of the text buffer (normally 80 columns).
-/// Making this public so it can be accessed from other modules
 pub const BUFFER_WIDTH: usize = 80;
 
 /// A structure representing the VGA text buffer.
@@ -112,16 +111,15 @@ struct Buffer {
 }
 
 /// A writer type that allows writing ASCII bytes and strings to an underlying `Buffer`.
-/// Wraps lines at `BUFFER_WIDTH`. Supports newline characters and implements the
-/// `core::fmt::Write` trait.
 pub struct Writer {
-    column_position: usize,
+    pub column_position: usize,
+    pub row_position: usize,
     color_code: ColorCode,
     buffer: &'static mut Buffer,
-    cursor_visible: bool,
+    pub cursor_visible: bool,
     cursor_color: ColorCode,
     cursor_style: CursorStyle,
-    saved_cursor_char: Option<ScreenChar>, // Store the char under the cursor
+    saved_cursor_char: Option<ScreenChar>,
 }
 
 impl Writer {
@@ -129,22 +127,73 @@ impl Writer {
         self.color_code = ColorCode::new(foreground, background);
     }
 
+    /// Safely clamp coordinates to buffer bounds
+    fn clamp_position(&self, row: usize, col: usize) -> (usize, usize) {
+        let safe_row = row.min(BUFFER_HEIGHT - 1);
+        let safe_col = col.min(BUFFER_WIDTH - 1);
+        (safe_row, safe_col)
+    }
+
+    /// Get current cursor position
+    pub fn get_cursor_position(&self) -> (usize, usize) {
+        (self.row_position, self.column_position)
+    }
+
+    /// Set cursor position with bounds checking
+    pub fn set_cursor_position(&mut self, row: usize, col: usize) {
+        self.erase_cursor();
+        let (safe_row, safe_col) = self.clamp_position(row, col);
+        self.row_position = safe_row;
+        self.column_position = safe_col;
+        if self.cursor_visible {
+            self.draw_cursor();
+        }
+    }
+
+    /// Move cursor with bounds checking
+    pub fn move_cursor_relative(&mut self, row_delta: i32, col_delta: i32) {
+        self.erase_cursor();
+        
+        // Calculate new position
+        let new_row = (self.row_position as i32 + row_delta).max(0) as usize;
+        let new_col = (self.column_position as i32 + col_delta).max(0) as usize;
+        
+        // Clamp to bounds
+        let (safe_row, safe_col) = self.clamp_position(new_row, new_col);
+        self.row_position = safe_row;
+        self.column_position = safe_col;
+        
+        if self.cursor_visible {
+            self.draw_cursor();
+        }
+    }
+
     pub fn write_byte(&mut self, byte: u8) {
-        // Erase cursor before writing
         self.erase_cursor();
 
         match byte {
             b'\n' => self.new_line(),
+            b'\r' => {
+                // Carriage return - move to beginning of current line
+                self.column_position = 0;
+            }
+            b'\t' => {
+                // Tab - move to next tab stop (every 4 characters)
+                let tab_size = 4;
+                let new_col = ((self.column_position / tab_size) + 1) * tab_size;
+                if new_col >= BUFFER_WIDTH {
+                    self.new_line();
+                } else {
+                    self.column_position = new_col;
+                }
+            }
             byte => {
                 if self.column_position >= BUFFER_WIDTH {
                     self.new_line();
                 }
 
-                let row = BUFFER_HEIGHT - 1;
-                let col = self.column_position;
-
                 let color_code = self.color_code;
-                self.buffer.chars[row][col].write(ScreenChar {
+                self.buffer.chars[self.row_position][self.column_position].write(ScreenChar {
                     ascii_character: byte,
                     color_code,
                 });
@@ -152,30 +201,32 @@ impl Writer {
             }
         }
 
-        // Draw cursor after writing
         if self.cursor_visible {
             self.draw_cursor();
         }
     }
 
-    /// Writes the given ASCII string to the buffer.
-    /// Wraps lines at `BUFFER_WIDTH`. Supports the `\n` newline character. Does **not**
-    /// support strings with non-ASCII characters, since they can't be printed in the VGA text
-    /// mode.
     fn write_string(&mut self, s: &str) {
         for byte in s.bytes() {
-            if self.column_position > 78 {
-                self.new_line();
-            }
             match byte {
-                0x20..=0x7e | b'\n' => self.write_byte(byte),
-                _ => self.write_byte(0xfe),
+                0x20..=0x7e | b'\n' | b'\r' | b'\t' => self.write_byte(byte),
+                _ => self.write_byte(0xfe), // Replacement character
             }
         }
     }
 
-    /// Shifts all lines one line up and clears the last row.
     fn new_line(&mut self) {
+        self.column_position = 0;
+        if self.row_position >= BUFFER_HEIGHT - 1 {
+            // Scroll up when we reach the bottom
+            self.scroll_up();
+        } else {
+            self.row_position += 1;
+        }
+    }
+
+    /// Scroll the entire buffer up by one line
+    fn scroll_up(&mut self) {
         for row in 1..BUFFER_HEIGHT {
             for col in 0..BUFFER_WIDTH {
                 let character = self.buffer.chars[row][col].read();
@@ -183,11 +234,15 @@ impl Writer {
             }
         }
         self.clear_row(BUFFER_HEIGHT - 1);
-        self.column_position = 0;
+        // Stay at the last row after scrolling
+        self.row_position = BUFFER_HEIGHT - 1;
     }
 
-    /// Clears a row by overwriting it with blank characters.
     fn clear_row(&mut self, row: usize) {
+        if row >= BUFFER_HEIGHT {
+            return;
+        }
+        
         let blank = ScreenChar {
             ascii_character: b' ',
             color_code: self.color_code,
@@ -199,26 +254,20 @@ impl Writer {
 
     pub fn handle_backspace(&mut self) {
         if self.column_position > 0 {
-            // Erase cursor before modifying
             self.erase_cursor();
-
-            // Move cursor back one position
             self.column_position -= 1;
 
-            // Create a blank ScreenChar with the current color code
             let blank = ScreenChar {
                 ascii_character: b' ',
                 color_code: self.color_code,
             };
+            self.buffer.chars[self.row_position][self.column_position].write(blank);
 
-            // Write the blank character to erase the previous character
-            self.buffer.chars[BUFFER_HEIGHT - 1][self.column_position].write(blank);
-
-            // Redraw cursor at new position
             if self.cursor_visible {
                 self.draw_cursor();
             }
         } else {
+            // At beginning of line, play beep if not in editor
             let editor_data_active = EDITOR_DATA.lock().active;
             if !editor_data_active {
                 sounds::play_beep_for(10, 500);
@@ -226,23 +275,19 @@ impl Writer {
         }
     }
 
+    /// Get column position (for backward compatibility)
     pub fn column_position(&self) -> usize {
         self.column_position
     }
 
-    pub fn move_cursor_up(&mut self, lines: usize) {
-        if self.column_position > 0 {
-            self.column_position = self.column_position.saturating_sub(lines);
-        }
+    /// Get row position
+    pub fn row_position(&self) -> usize {
+        self.row_position
     }
 
     pub fn draw_cursor(&mut self) {
-        let row = BUFFER_HEIGHT - 1;
-        let col = self.column_position;
-        if col >= BUFFER_WIDTH {
-            return;
-        }
-
+        let (row, col) = self.clamp_position(self.row_position, self.column_position);
+        
         // Save the current character under the cursor if not already saved
         if self.saved_cursor_char.is_none() {
             self.saved_cursor_char = Some(self.buffer.chars[row][col].read());
@@ -251,7 +296,6 @@ impl Writer {
 
         let cursor_char = match self.cursor_style {
             CursorStyle::Block | CursorStyle::Invert => {
-                // Invert foreground and background colors
                 let fg = current_char.color_code.bg();
                 let bg = current_char.color_code.fg();
                 ScreenChar {
@@ -260,7 +304,6 @@ impl Writer {
                 }
             }
             CursorStyle::Underline => {
-                // Use a different foreground color for underline effect (e.g., Yellow)
                 let mut underline_code = current_char.color_code;
                 underline_code.0 = (underline_code.0 & 0xF0) | (Color::Yellow as u8);
                 ScreenChar {
@@ -273,18 +316,13 @@ impl Writer {
         self.buffer.chars[row][col].write(cursor_char);
     }
 
-    /// Erases the cursor by restoring the original character
     pub fn erase_cursor(&mut self) {
-        let row = BUFFER_HEIGHT - 1;
-        let col = self.column_position;
-        if col < BUFFER_WIDTH {
-            if let Some(orig) = self.saved_cursor_char.take() {
-                self.buffer.chars[row][col].write(orig);
-            }
+        let (row, col) = self.clamp_position(self.row_position, self.column_position);
+        if let Some(orig) = self.saved_cursor_char.take() {
+            self.buffer.chars[row][col].write(orig);
         }
     }
 
-    /// Toggles cursor visibility (for blinking)
     pub fn toggle_cursor(&mut self) {
         if self.cursor_visible {
             self.erase_cursor();
@@ -294,7 +332,6 @@ impl Writer {
         self.cursor_visible = !self.cursor_visible;
     }
 
-    /// Sets the cursor visibility
     pub fn set_cursor_visibility(&mut self, visible: bool) {
         if visible != self.cursor_visible {
             if visible {
@@ -306,20 +343,36 @@ impl Writer {
         }
     }
 
-    /// Moves the cursor to a new position with bounds checking
-    pub fn move_cursor(&mut self, new_col: usize) {
+    pub fn set_cursor_style(&mut self, style: CursorStyle) {
         self.erase_cursor();
-        // FIXED: Ensure the new position is within bounds
-        self.column_position = new_col.min(BUFFER_WIDTH - 1);
+        self.cursor_style = style;
         if self.cursor_visible {
             self.draw_cursor();
         }
     }
 
-    /// Sets the cursor style
-    pub fn set_cursor_style(&mut self, style: CursorStyle) {
+    /// Write character at specific position without moving cursor
+    pub fn write_char_at(&mut self, row: usize, col: usize, ch: u8, color: ColorCode) {
+        let (safe_row, safe_col) = self.clamp_position(row, col);
+        self.buffer.chars[safe_row][safe_col].write(ScreenChar {
+            ascii_character: ch,
+            color_code: color,
+        });
+    }
+
+    /// Read character at specific position
+    pub fn read_char_at(&self, row: usize, col: usize) -> Option<ScreenChar> {
+        if row < BUFFER_HEIGHT && col < BUFFER_WIDTH {
+            Some(self.buffer.chars[row][col].read())
+        } else {
+            None
+        }
+    }
+
+    /// Move cursor to specific column on current row
+    pub fn move_cursor(&mut self, new_col: usize) {
         self.erase_cursor();
-        self.cursor_style = style;
+        self.column_position = new_col.min(BUFFER_WIDTH - 1);
         if self.cursor_visible {
             self.draw_cursor();
         }
@@ -333,6 +386,8 @@ impl fmt::Write for Writer {
     }
 }
 
+// Global functions
+
 pub fn set_color(foreground: Color, background: Color) {
     use x86_64::instructions::interrupts;
     interrupts::without_interrupts(|| {
@@ -340,34 +395,82 @@ pub fn set_color(foreground: Color, background: Color) {
     });
 }
 
-/// Like the `print!` macro in the standard library, but prints to the VGA text buffer.
-#[macro_export]
-macro_rules! print {
-    ($($arg:tt)*) => ($crate::vga_buffer::_print(format_args!($($arg)*)));
-}
-
-/// Like the `println!` macro in the standard library, but prints to the VGA text buffer.
-#[macro_export]
-macro_rules! println {
-    () => ($crate::print!("\n"));
-    ($($arg:tt)*) => ($crate::print!("{}\n", format_args!($($arg)*)));
-}
-
-/// Prints the given formatted string to the VGA text buffer
-/// through the global `WRITER` instance.
-#[doc(hidden)]
-pub fn _print(args: fmt::Arguments) {
-    use core::fmt::Write;
+pub fn get_cursor_position() -> (usize, usize) {
     use x86_64::instructions::interrupts;
     interrupts::without_interrupts(|| {
-        WRITER.lock().write_fmt(args).unwrap();
+        let writer = WRITER.lock();
+        writer.get_cursor_position()
+    })
+}
+
+pub fn set_cursor_position(row: usize, col: usize) {
+    use x86_64::instructions::interrupts;
+    interrupts::without_interrupts(|| {
+        let mut writer = WRITER.lock();
+        writer.set_cursor_position(row, col);
+    });
+}
+
+pub fn move_cursor_left(positions: usize) {
+    use x86_64::instructions::interrupts;
+    interrupts::without_interrupts(|| {
+        let mut writer = WRITER.lock();
+        let current_pos = writer.column_position;
+        if current_pos >= positions {
+            writer.move_cursor(current_pos - positions);
+        } else {
+            writer.move_cursor(0);
+        }
+    });
+}
+
+pub fn move_cursor_right(positions: usize) {
+    use x86_64::instructions::interrupts;
+    interrupts::without_interrupts(|| {
+        let mut writer = WRITER.lock();
+        let current_pos = writer.column_position;
+        let new_pos = (current_pos + positions).min(BUFFER_WIDTH - 1);
+        writer.move_cursor(new_pos);
+    });
+}
+
+pub fn move_cursor_to_start_of_line() {
+    use x86_64::instructions::interrupts;
+    interrupts::without_interrupts(|| {
+        let mut writer = WRITER.lock();
+        writer.erase_cursor();
+        writer.column_position = 0;
+        if writer.cursor_visible {
+            writer.draw_cursor();
+        }
+    });
+}
+
+pub fn move_cursor_to_end_of_line() {
+    use x86_64::instructions::interrupts;
+    interrupts::without_interrupts(|| {
+        let mut writer = WRITER.lock();
+        writer.erase_cursor();
+        writer.column_position = BUFFER_WIDTH - 1;
+        if writer.cursor_visible {
+            writer.draw_cursor();
+        }
     });
 }
 
 pub fn move_cursor_up(lines: usize) {
     use x86_64::instructions::interrupts;
     interrupts::without_interrupts(|| {
-        WRITER.lock().move_cursor_up(lines);
+        let mut writer = WRITER.lock();
+        writer.move_cursor_relative(-(lines as i32), 0);
+    });
+}
+
+pub fn move_cursor_down(lines: usize) {
+    use x86_64::instructions::interrupts;
+    interrupts::without_interrupts(|| {
+        let mut writer = WRITER.lock();
+        writer.move_cursor_relative(lines as i32, 0);
     });
 }
 
@@ -378,7 +481,6 @@ pub fn backspace() {
     });
 }
 
-/// Sets the cursor style globally
 pub fn set_cursor_style(style: CursorStyle) {
     use x86_64::instructions::interrupts;
     interrupts::without_interrupts(|| {
@@ -386,7 +488,6 @@ pub fn set_cursor_style(style: CursorStyle) {
     });
 }
 
-/// Sets the cursor visibility globally
 pub fn set_cursor_visibility(visible: bool) {
     use x86_64::instructions::interrupts;
     interrupts::without_interrupts(|| {
@@ -394,7 +495,6 @@ pub fn set_cursor_visibility(visible: bool) {
     });
 }
 
-/// Force redraw of the cursor
 pub fn redraw_cursor() {
     use x86_64::instructions::interrupts;
     interrupts::without_interrupts(|| {
@@ -413,6 +513,19 @@ pub fn clear_screen() {
         for row in 0..BUFFER_HEIGHT {
             writer.clear_row(row);
         }
+        writer.set_cursor_position(0, 0); // Start at top-left like a normal terminal
+        if writer.cursor_visible {
+            writer.draw_cursor();
+        }
+    });
+}
+
+pub fn clear_line() {
+    use x86_64::instructions::interrupts;
+    interrupts::without_interrupts(|| {
+        let mut writer = WRITER.lock();
+        let current_row = writer.row_position;
+        writer.clear_row(current_row);
         writer.column_position = 0;
         if writer.cursor_visible {
             writer.draw_cursor();
@@ -420,31 +533,50 @@ pub fn clear_screen() {
     });
 }
 
-// NEW: Helper methods for cursor movement with bounds checking
-// These are safer to use from other modules
-
-/// Safely move the cursor left by one position, if possible
-pub fn move_cursor_left() {
+pub fn write_char_at(row: usize, col: usize, ch: u8, foreground: Color, background: Color) {
     use x86_64::instructions::interrupts;
     interrupts::without_interrupts(|| {
-        let mut writer = WRITER.lock();
-        let col = writer.column_position();
-        if col > 0 {
-            writer.move_cursor(col - 1);
-        }
+        let color = ColorCode::new(foreground, background);
+        WRITER.lock().write_char_at(row, col, ch, color);
     });
 }
 
-/// Safely move the cursor right by one position, if possible
-pub fn move_cursor_right() {
+pub fn read_char_at(row: usize, col: usize) -> Option<(u8, Color, Color)> {
     use x86_64::instructions::interrupts;
     interrupts::without_interrupts(|| {
-        let mut writer = WRITER.lock();
-        let col = writer.column_position();
-        if col < BUFFER_WIDTH - 1 {
-            writer.move_cursor(col + 1);
+        if let Some(screen_char) = WRITER.lock().read_char_at(row, col) {
+            Some((
+                screen_char.ascii_character,
+                screen_char.color_code.fg(),
+                screen_char.color_code.bg(),
+            ))
+        } else {
+            None
         }
+    })
+}
+
+/// Print the given formatted string to the VGA text buffer
+#[doc(hidden)]
+pub fn _print(args: fmt::Arguments) {
+    use core::fmt::Write;
+    use x86_64::instructions::interrupts;
+    interrupts::without_interrupts(|| {
+        WRITER.lock().write_fmt(args).unwrap();
     });
+}
+
+/// Like the `print!` macro in the standard library, but prints to the VGA text buffer.
+#[macro_export]
+macro_rules! print {
+    ($($arg:tt)*) => ($crate::vga_buffer::_print(format_args!($($arg)*)));
+}
+
+/// Like the `println!` macro in the standard library, but prints to the VGA text buffer.
+#[macro_export]
+macro_rules! println {
+    () => ($crate::print!("\n"));
+    ($($arg:tt)*) => ($crate::print!("{}\n", format_args!($($arg)*)));
 }
 
 #[test_case]
@@ -469,8 +601,34 @@ fn test_println_output() {
         let mut writer = WRITER.lock();
         writeln!(writer, "\n{}", s).expect("writeln failed");
         for (i, c) in s.chars().enumerate() {
-            let screen_char = writer.buffer.chars[BUFFER_HEIGHT - 2][i].read();
-            assert_eq!(char::from(screen_char.ascii_character), c);
+            if let Some(screen_char) = writer.read_char_at(writer.row_position() - 1, i) {
+                assert_eq!(char::from(screen_char.ascii_character), c);
+            }
         }
+    });
+}
+
+#[test_case]
+fn test_cursor_movement() {
+    use x86_64::instructions::interrupts;
+    
+    interrupts::without_interrupts(|| {
+        let mut writer = WRITER.lock();
+        
+        // Test bounds checking
+        writer.set_cursor_position(0, 0);
+        assert_eq!(writer.get_cursor_position(), (0, 0));
+        
+        writer.set_cursor_position(BUFFER_HEIGHT + 10, BUFFER_WIDTH + 10);
+        assert_eq!(writer.get_cursor_position(), (BUFFER_HEIGHT - 1, BUFFER_WIDTH - 1));
+        
+        // Test relative movement
+        writer.set_cursor_position(10, 10);
+        writer.move_cursor_relative(-5, -5);
+        assert_eq!(writer.get_cursor_position(), (5, 5));
+        
+        // Test bounds on relative movement
+        writer.move_cursor_relative(-10, -10);
+        assert_eq!(writer.get_cursor_position(), (0, 0));
     });
 }

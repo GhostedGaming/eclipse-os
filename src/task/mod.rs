@@ -65,3 +65,36 @@ impl TaskId {
 pub async fn yield_now() {
     YieldNow::new().await
 }
+
+pub struct Sleep {
+    target_ticks: u64,
+}
+
+impl Sleep {
+    pub fn new(duration_ms: u64) -> Self {
+        let current_ticks = crate::time::get_ticks();
+        Sleep {
+            target_ticks: current_ticks + duration_ms,
+        }
+    }
+}
+
+impl Future for Sleep {
+    type Output = ();
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let current_ticks = crate::time::get_ticks();
+        
+        if current_ticks >= self.target_ticks {
+            Poll::Ready(())
+        } else {
+            // Wake up on next timer interrupt
+            cx.waker().wake_by_ref();
+            Poll::Pending
+        }
+    }
+}
+
+pub fn sleep_ms(duration_ms: u64) -> Sleep {
+    Sleep::new(duration_ms)
+}

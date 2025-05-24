@@ -29,6 +29,9 @@ impl Data {
     fn update_lines(&mut self) {
         use alloc::string::ToString;
         self.lines = self.text.split('\n').map(|s| s.to_string()).collect();
+        if self.lines.is_empty() {
+            self.lines.push(String::new());
+        }
     }
 
     /// Inserts a character at the current cursor position
@@ -44,7 +47,13 @@ impl Data {
         if self.cursor > 0 {
             self.text.remove(self.cursor - 1);
             self.cursor -= 1;
-            self.cursor_x -= 1;
+            if self.cursor_x > 0 {
+                self.cursor_x -= 1;
+            } else if self.cursor_y > 0 {
+                // Moving to previous line
+                self.cursor_y -= 1;
+                self.cursor_x = self.lines[self.cursor_y].len();
+            }
             self.update_lines();
         }
     }
@@ -72,36 +81,32 @@ lazy_static! {
 
 /// Returns the code currently in the editor buffer as a String.
 pub fn get_text() -> String {
-    // Just return the buffer for the interpreter to process
     EDITOR_DATA.lock().text.clone()
-}
-
-/// Optionally process text (not required for basic input)
-pub fn text_processor(text: String) -> String {
-    text
 }
 
 /// Initializes the editor and clears the buffer.
 pub fn init_editor() {
-    let mut editor_data = EDITOR_DATA.lock();
-    editor_data.active = true;
-    editor_data.text.clear();
-    editor_data.cursor = 0;
-    editor_data.cursor_x = 0;
-    editor_data.cursor_y = 0;
-    editor_data.lines = Vec::new();
+    {
+        let mut editor_data = EDITOR_DATA.lock();
+        editor_data.active = true;
+        editor_data.text.clear();
+        editor_data.cursor = 0;
+        editor_data.cursor_x = 0;
+        editor_data.cursor_y = 0;
+        editor_data.lines = Vec::new();
+        editor_data.update_lines(); // Initialize with empty line
+    }
     
     vga_buffer::clear_screen();
     vga_buffer::set_cursor_visibility(true);
     vga_buffer::set_cursor_style(vga_buffer::CursorStyle::Block);
     
     println!("-- EXPRESS EDITOR --");
-    println!("(Ctrl+C to exit)");
-}
-
-/// Setup function for any initialization needed
-pub fn init_setup() {
-    // Any one-time setup code goes here
+    println!("Type your code below. Press Ctrl+C to exit and run.");
+    println!("");
+    
+    // Position cursor for input
+    vga_buffer::set_cursor_position(3, 0);
 }
 
 /// Handles a single character input in the editor.
@@ -131,7 +136,6 @@ pub fn process_editor_key(c: char) {
 pub fn move_cursor_left() {
     let mut editor_data = EDITOR_DATA.lock();
     if editor_data.active && editor_data.cursor > 0 {
-        // Handle moving left at the beginning of a line
         if editor_data.cursor_x == 0 && editor_data.cursor_y > 0 {
             // Move to the end of the previous line
             editor_data.cursor_y -= 1;
@@ -141,7 +145,7 @@ pub fn move_cursor_left() {
         }
         
         editor_data.cursor -= 1;
-        vga_buffer::move_cursor_left();
+        vga_buffer::move_cursor_left(1);
     }
 }
 
@@ -151,7 +155,6 @@ pub fn move_cursor_right() {
     if editor_data.active && editor_data.cursor < editor_data.text.len() {
         let current_line_length = editor_data.get_current_line_length();
         
-        // Handle moving right at the end of a line
         if editor_data.cursor_x >= current_line_length && 
             editor_data.cursor_y < editor_data.lines.len() - 1 {
             // Move to the beginning of the next line
@@ -162,7 +165,7 @@ pub fn move_cursor_right() {
         }
         
         editor_data.cursor += 1;
-        vga_buffer::move_cursor_right();
+        vga_buffer::move_cursor_right(1);
     }
 }
 
@@ -170,44 +173,14 @@ pub fn move_cursor_right() {
 pub fn move_cursor_up() {
     let mut editor_data = EDITOR_DATA.lock();
     if editor_data.active && editor_data.cursor_y > 0 {
-        // Calculate current position in text
-        let current_line_offset = editor_data.text[..editor_data.cursor]
-            .rfind('\n')
-            .map_or(0, |pos| pos + 1);
-            
-        // Calculate previous line length
         editor_data.cursor_y -= 1;
         let prev_line_length = editor_data.lines[editor_data.cursor_y].len();
         
-        // Adjust x position if needed
         if editor_data.cursor_x > prev_line_length {
             editor_data.cursor_x = prev_line_length;
         }
         
-        // Update absolute cursor position
-        editor_data.cursor = current_line_offset - editor_data.cursor_x - 1;
-        
-        // Update visual cursor
-        // This would require more complex VGA buffer manipulation
-        // For now, we'd need to redraw the screen
-        redraw_editor();
-    }
-}
-
-/// Move cursor down
-pub fn move_cursor_down() {
-    let mut editor_data = EDITOR_DATA.lock();
-    if editor_data.active && editor_data.cursor_y < editor_data.lines.len() - 1 {
-        // Calculate next line length
-        editor_data.cursor_y += 1;
-        let next_line_length = editor_data.lines[editor_data.cursor_y].len();
-        
-        // Adjust x position if needed
-        if editor_data.cursor_x > next_line_length {
-            editor_data.cursor_x = next_line_length;
-        }
-        
-        // Calculate new absolute cursor position
+        // Recalculate absolute cursor position
         let mut pos = 0;
         for i in 0..editor_data.cursor_y {
             pos += editor_data.lines[i].len() + 1; // +1 for newline
@@ -215,51 +188,66 @@ pub fn move_cursor_down() {
         pos += editor_data.cursor_x;
         editor_data.cursor = pos;
         
-        // Update visual cursor
-        // This would require more complex VGA buffer manipulation
-        // For now, we'd need to redraw the screen
-        redraw_editor();
+        vga_buffer::move_cursor_up(1);
     }
 }
 
-/// Redraw the editor content
-fn redraw_editor() {
-    let editor_data = EDITOR_DATA.lock();
-    
-    // Save cursor state
-    let cursor_x = editor_data.cursor_x;
-    let cursor_y = editor_data.cursor_y;
-    
-    // Clear screen and redraw content
-    vga_buffer::clear_screen();
-    println!("-- EXPRESS EDITOR --");
-    println!("(Ctrl+C to exit)");
-    
-    // Print all lines
-    for line in &editor_data.lines {
-        println!("{}", line);
+/// Move cursor down
+pub fn move_cursor_down() {
+    let mut editor_data = EDITOR_DATA.lock();
+    if editor_data.active && editor_data.cursor_y < editor_data.lines.len() - 1 {
+        editor_data.cursor_y += 1;
+        let next_line_length = editor_data.lines[editor_data.cursor_y].len();
+        
+        if editor_data.cursor_x > next_line_length {
+            editor_data.cursor_x = next_line_length;
+        }
+        
+        // Recalculate absolute cursor position
+        let mut pos = 0;
+        for i in 0..editor_data.cursor_y {
+            pos += editor_data.lines[i].len() + 1; // +1 for newline
+        }
+        pos += editor_data.cursor_x;
+        editor_data.cursor = pos;
+        
+        vga_buffer::move_cursor_down(1);
     }
-    
-    // Restore cursor position
-    // This would require more complex VGA buffer manipulation
-    // For a simple implementation, we'd need to calculate screen position
 }
 
 /// Exits the editor, resets state, and runs the interpreter.
 pub fn exit_editor() {
-    {
+    let code_to_run = {
         let mut editor_data = EDITOR_DATA.lock();
         editor_data.active = false;
+        let code = editor_data.text.clone();
+        
         vga_buffer::clear_screen();
         vga_buffer::set_cursor_visibility(true);
         vga_buffer::set_color(vga_buffer::Color::White, vga_buffer::Color::Black);
+        
         println!("-- Exited Express Editor --");
-        // Do NOT clear editor_data.text here, so interpreter can read it!
-    } // lock dropped
+        println!("Running code:");
+        println!("----------------------------------------");
+        println!("{}", code);
+        println!("----------------------------------------");
+        
+        code
+    }; // lock dropped here
     
-    crate::intereperter::run::run_example();
+    // Run the interpreter with the code
+    if !code_to_run.trim().is_empty() {
+        println!("Executing code...");
+        
+        // Actually call the interpreter here!
+        crate::intereperter::run::run_example();
+        
+        println!("Code execution completed.");
+    } else {
+        println!("No code to execute.");
+    }
     
-    // Now clear the buffer after running the interpreter
+    // Clear the buffer after running
     {
         let mut editor_data = EDITOR_DATA.lock();
         editor_data.text.clear();
@@ -267,5 +255,38 @@ pub fn exit_editor() {
         editor_data.cursor_x = 0;
         editor_data.cursor_y = 0;
         editor_data.lines.clear();
+    }
+    
+    // Return to shell
+    println!();
+    crate::task::keyboard::init_shell();
+}
+
+/// Move cursor to start of current line
+pub fn move_to_line_start() {
+    let mut editor_data = EDITOR_DATA.lock();
+    if editor_data.active {
+        // Calculate how many characters to move back to reach line start
+        let chars_to_move = editor_data.cursor_x;
+        editor_data.cursor -= chars_to_move;
+        editor_data.cursor_x = 0;
+        
+        // Move VGA cursor to start of line
+        vga_buffer::move_cursor_to_start_of_line();
+    }
+}
+
+/// Move cursor to end of current line
+pub fn move_to_line_end() {
+    let mut editor_data = EDITOR_DATA.lock();
+    if editor_data.active && editor_data.cursor_y < editor_data.lines.len() {
+        let current_line_length = editor_data.lines[editor_data.cursor_y].len();
+        let chars_to_move = current_line_length - editor_data.cursor_x;
+        
+        editor_data.cursor += chars_to_move;
+        editor_data.cursor_x = current_line_length;
+        
+        // Move VGA cursor to end of line content
+        vga_buffer::move_cursor_right(chars_to_move);
     }
 }

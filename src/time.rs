@@ -99,6 +99,47 @@ pub fn get_uptime_seconds() -> u64 {
     get_time_ms() / 1000
 }
 
+pub fn delay_ms(ms: u64) {
+    let start_ticks = get_ticks();
+    let target_ticks = start_ticks + ms;
+    
+    while get_ticks() < target_ticks {
+        core::hint::spin_loop();
+    }
+}
+
+pub fn delay_us(microseconds: u64) {
+    let start_time = get_time_ns();
+    let target_time = start_time + (microseconds * 1000); // Convert to nanoseconds
+    
+    while get_time_ns() < target_time {
+        core::hint::spin_loop();
+    }
+}
+
+
+pub fn delay(milliseconds: f64) {
+    if milliseconds > 0.0 {
+        delay_ms(milliseconds as u64);
+    }
+}
+pub fn precise_delay_ns(nanoseconds: f64) {
+    if let Some(cpu_freq) = get_cpu_frequency_hz() {
+        let start_tsc = unsafe { core::arch::x86_64::_rdtsc() };
+        let cycles_to_wait = (nanoseconds * cpu_freq as f64) / 1_000_000_000.0;
+        let target_tsc = start_tsc + cycles_to_wait as u64;
+        
+        while unsafe { core::arch::x86_64::_rdtsc() } < target_tsc {
+            core::hint::spin_loop();
+        }
+    } else {
+        // Fallback to regular delay
+        delay_ms((nanoseconds / 1_000_000.0) as u64);
+    }
+}
+pub fn precise_delay_us(microseconds: u64) {
+    precise_delay_ns((microseconds * 1000) as f64);
+}
 // Time sync task for your async executor
 pub async fn time_sync_task() {
     loop {
