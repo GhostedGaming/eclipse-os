@@ -40,20 +40,14 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     vga_buffer::set_color(Color::White, Color::Black);
     vga_buffer::set_cursor_visibility(true);
     
-    // Now safe to call CPUID (but use the non-allocating version)
-    cpuid::print_cpu_vendor();
+    // Initialize CPU info and print details
+    cpuid::init_cpu_info();
+    cpuid::print_cpu_info();
 
     print_status("Heap Initialization", Ok(()));
-
-    // Check Panic Handler (assumed to be set up correctly)
     print_status("Panic Handler Setup", Ok(()));
-
-    // Perform trivial assertion
     print_status("Trivial Assertion", trivial_assertion());
-
-    // Initialize time
     print_status("Time Initialization", initiate_time());
-    
     print_status("Test Coms", test_port_print());
 
     #[cfg(test)]
@@ -103,7 +97,7 @@ fn trivial_assertion() -> Result<(), ()> {
 
 /// Initiate time and return success status
 fn initiate_time() -> Result<(), ()> {
-    time::init();
+    time::init(); // This now properly configures the PIT
     Ok(())
 }
 

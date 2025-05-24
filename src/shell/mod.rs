@@ -60,6 +60,7 @@ impl Shell {
             "shutdown" => commands::shutdown(),
             "qemu_shutdown" => exit_qemu(QemuExitCode::Success),
             "time" => commands::time(),
+            "date" => commands::date(),
             "test" => commands::test(),
             "express" => commands::express(),
             "halt" => commands::halt(),

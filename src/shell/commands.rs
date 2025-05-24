@@ -88,7 +88,7 @@ pub fn test() {
 }
 
 pub fn cpuid() {
-    cpuid::print_cpu_vendor();
+    cpuid::print_cpu_info();
 }
 
 pub fn qemu_shutdown() {
@@ -100,12 +100,32 @@ pub fn shutdown() {
 }
 
 pub fn time() {
-    let time_str = time::format_time();
-    let date_str = time::format_date();
-
-    println!("current date: {}!",date_str);
-    println!("current time: {}!",time_str);
+    let current_time = crate::time::get_current_time();
+    let uptime = crate::time::get_uptime_seconds();
+    
+    println!("Current time: {}", current_time);
+    println!("Uptime: {}s", uptime);
 }
+
+pub fn date() {
+    let current_time = crate::time::get_current_time();
+    println!("{:04}-{:02}-{:02} {}", 
+            current_time.year, 
+            current_time.month, 
+            current_time.day,
+            current_time);
+}
+
+pub fn clock() {
+    let current_time = crate::time::get_current_time();
+    let (hour, minute, is_pm) = current_time.format_12h();
+    let ampm = if is_pm { "PM" } else { "AM" };
+    
+    println!("╔════════════╗");
+    println!("║  {:02}:{:02} {}  ║", hour, minute, ampm);
+    println!("╚════════════╝");
+}
+
 
 pub fn version() {
     println!("EclipseOS v0.1.0");
@@ -115,5 +135,22 @@ pub fn halt() {
     println!("System halted.");
     loop {
         x86_64::instructions::hlt();
+    }
+}
+
+pub fn time_test() {
+    use crate::time;
+    
+    println!("=== Timing Test ===");
+    println!("Current ticks: {}", time::get_ticks());
+    println!("Time (ms): {}", time::get_time_ms());
+    println!("Time (ns): {}", time::get_time_ns());
+    
+    if let Some(precise_ns) = time::get_precise_time_ns() {
+        println!("Precise time (ns): {}", precise_ns);
+    }
+    
+    if let Some(cpu_freq) = time::get_cpu_frequency_hz() {
+        println!("CPU frequency: {} Hz", cpu_freq);
     }
 }

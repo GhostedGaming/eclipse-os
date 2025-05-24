@@ -24,6 +24,7 @@ pub mod text_editor;
 pub mod intereperter;
 pub mod coms;
 pub mod cpu;
+pub mod rtc;
 
 pub fn init() {
     gdt::init();
