@@ -277,6 +277,10 @@ impl Parser {
             return value;
         }
 
+        if matches!(self.peek(0), Tokens::Input) {
+            
+        }
+
         if matches!(self.peek(0), Tokens::Return) {
             self.advance();
             let value = self.expression();

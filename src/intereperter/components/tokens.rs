@@ -6,6 +6,7 @@ use crate::println;
 pub enum Tokens {
     Print,
     Println,
+    Input,
     Asm,
     Let,
     Fn,
@@ -187,6 +188,7 @@ pub fn lexer(src: &str) -> Vec<Tokens> {
                     "println" => tokens.push(Tokens::Println),
                     "asm" => tokens.push(Tokens::Asm),
                     "for" => tokens.push(Tokens::For),
+                    "input" => tokens.push(Tokens::Input),
                     _ => tokens.push(Tokens::Identifier(identifier)),
                 }
             }
