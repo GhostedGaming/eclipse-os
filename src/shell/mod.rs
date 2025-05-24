@@ -207,7 +207,7 @@ impl Shell {
             "express" => commands::express(),
             "eclipse" => {
                 println!("Eclipse OS - A modern operating system");
-                println!("Version: 0.1.0");
+                println!("Version: 0.1.1");
                 println!("Built with Rust");
             }
             _ => {
