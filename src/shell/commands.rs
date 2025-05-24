@@ -88,7 +88,7 @@ pub fn test() {
 }
 
 pub fn cpuid() {
-    println!("{}", cpuid::cpuid_intruction());
+    cpuid::print_cpu_vendor();
 }
 
 pub fn qemu_shutdown() {

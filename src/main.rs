@@ -24,20 +24,26 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     use eclipse_os::memory::{self, BootInfoFrameAllocator};
     use x86_64::VirtAddr;
 
-    eclipse_os::init();
-
-    // Initialize memory management
+    // Initialize memory management FIRST
     let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
     let mut mapper = unsafe { memory::init(phys_mem_offset) };
     let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
 
+    // Initialize heap IMMEDIATELY after memory setup
+    allocator::init_heap(&mut mapper, &mut frame_allocator)
+        .expect("heap initialization failed");
+
+    // Now it's safe to call other initialization
+    eclipse_os::init();
+
     vga_buffer::set_cursor_style(CursorStyle::Underline);
     vga_buffer::set_color(Color::White, Color::Black);
     vga_buffer::set_cursor_visibility(true);
-    cpuid::cpuid_intruction();
+    
+    // Now safe to call CPUID (but use the non-allocating version)
+    cpuid::print_cpu_vendor();
 
-    // Initialize heap and check status
-    print_status("Heap Initialization", allocator::init_heap(&mut mapper, &mut frame_allocator).map_err(|_| ()));
+    print_status("Heap Initialization", Ok(()));
 
     // Check Panic Handler (assumed to be set up correctly)
     print_status("Panic Handler Setup", Ok(()));

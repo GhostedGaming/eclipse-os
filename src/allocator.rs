@@ -8,12 +8,14 @@ use x86_64::{
     },
 };
 
+use crate::println;
+
 pub mod bump;
 pub mod fixed_size_block;
 pub mod linked_list;
 
 pub const HEAP_START: usize = 0x_4444_4444_0000;
-pub const HEAP_SIZE: usize = 1024 * 1024; // 1Mib
+pub const HEAP_SIZE: usize = 1024 * 1024; // 1MiB
 
 #[global_allocator]
 static ALLOCATOR: Locked<FixedSizeBlockAllocator> = Locked::new(FixedSizeBlockAllocator::new());
@@ -30,6 +32,8 @@ pub fn init_heap(
         Page::range_inclusive(heap_start_page, heap_end_page)
     };
 
+    println!("Initializing heap: start={:#x}, size={:#x}", HEAP_START, HEAP_SIZE);
+    
     for page in page_range {
         let frame = frame_allocator
             .allocate_frame()
@@ -42,7 +46,31 @@ pub fn init_heap(
         ALLOCATOR.lock().init(HEAP_START, HEAP_SIZE);
     }
 
+    println!("Heap initialization complete");
     Ok(())
+}
+
+// Add a debug wrapper around your allocator
+pub struct DebugAllocator<A>(A);
+
+impl<A> DebugAllocator<A> {
+    pub const fn new(allocator: A) -> Self {
+        DebugAllocator(allocator)
+    }
+}
+
+unsafe impl<A: GlobalAlloc> GlobalAlloc for DebugAllocator<A> {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        let ptr = self.0.alloc(layout);
+        if ptr.is_null() {
+            println!("ALLOCATION FAILED: size={}, align={}", layout.size(), layout.align());
+        }
+        ptr
+    }
+
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        self.0.dealloc(ptr, layout);
+    }
 }
 
 pub struct Dummy;
