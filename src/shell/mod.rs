@@ -63,6 +63,7 @@ impl Shell {
             "test" => commands::test(),
             "express" => commands::express(),
             "halt" => commands::halt(),
+            "cpuid" => commands::cpuid(),
             _ => println!("Unknown command: {}. Type 'help' for available commands.", command),
         }
     }

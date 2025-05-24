@@ -15,6 +15,7 @@ use eclipse_os::task::{Task, executor::Executor, keyboard};
 use eclipse_os::time;
 use eclipse_os::vga_buffer::{self, Color, CursorStyle};
 use eclipse_os::{print, println, port_println};
+use eclipse_os::cpu::cpuid;
 
 entry_point!(kernel_main);
 
@@ -33,6 +34,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     vga_buffer::set_cursor_style(CursorStyle::Underline);
     vga_buffer::set_color(Color::White, Color::Black);
     vga_buffer::set_cursor_visibility(true);
+    cpuid::cpuid_intruction();
 
     // Initialize heap and check status
     print_status("Heap Initialization", allocator::init_heap(&mut mapper, &mut frame_allocator).map_err(|_| ()));

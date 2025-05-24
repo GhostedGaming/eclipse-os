@@ -1,5 +1,6 @@
 use alloc::string::String;
 use core::str::SplitWhitespace;
+use crate::cpu::cpuid;
 use crate::{exit_qemu, println, vga_buffer, QemuExitCode};
 use crate::time;
 use crate::shutdown;
@@ -20,26 +21,41 @@ pub fn clear() {
 }
 
 pub fn echo(mut args: SplitWhitespace) {
-    let mut output = String::new();
+    // Use a fixed-size buffer instead of dynamic String allocation
+    let mut output_bytes = [0u8; 256]; // Fixed 256-byte buffer
+    let mut len = 0;
+    
     let slurs = [
-        //disregard this its stupid
         "fgewfew", "hgergre",
     ];
     
+    // Build output in fixed buffer
     while let Some(arg) = args.next() {
-        output.push_str(arg);
-        output.push(' ');
+        for byte in arg.bytes() {
+            if len < output_bytes.len() - 1 {
+                output_bytes[len] = byte;
+                len += 1;
+            }
+        }
+        if len < output_bytes.len() - 1 {
+            output_bytes[len] = b' ';
+            len += 1;
+        }
     }
     
-    let trimmed_output = output.trim_end();
-    
-    // Check if the output contains any slurs
-    let contains_slur = slurs.iter().any(|&slur| trimmed_output.to_lowercase().contains(slur));
-    
-    if contains_slur {
-        println!("[Filtered content]");
+    // Convert to string slice for processing
+    if let Ok(output_str) = core::str::from_utf8(&output_bytes[..len.saturating_sub(1)]) {
+        let contains_slur = slurs.iter().any(|&slur| 
+            output_str.to_lowercase().contains(slur)
+        );
+        
+        if contains_slur {
+            println!("[Filtered content]");
+        } else {
+            println!("{}", output_str);
+        }
     } else {
-        println!("{}", trimmed_output);
+        println!("Invalid UTF-8 in input");
     }
 }
 
@@ -71,7 +87,9 @@ pub fn test() {
     run_example();
 }
 
-
+pub fn cpuid() {
+    println!("{}", cpuid::cpuid_intruction());
+}
 
 pub fn qemu_shutdown() {
     exit_qemu(QemuExitCode::Success);

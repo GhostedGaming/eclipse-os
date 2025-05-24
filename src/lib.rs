@@ -23,6 +23,7 @@ pub mod sounds;
 pub mod text_editor;
 pub mod intereperter;
 pub mod coms;
+pub mod cpu;
 
 pub fn init() {
     gdt::init();
