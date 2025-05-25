@@ -40,7 +40,7 @@ fn configure_pit_timer() {
     // Calculate the divisor for the desired frequency
     let divisor = PIT_FREQUENCY / DESIRED_FREQUENCY;
     
-    crate::println!("Configuring PIT: base_freq={} Hz, desired_freq={} Hz, divisor={}", 
+    crate::println!("Configuring PIT: base_freq={} Hz, desired_freq={} Hz, divisor={}",
                     PIT_FREQUENCY, DESIRED_FREQUENCY, divisor);
 
     unsafe {
@@ -123,6 +123,7 @@ pub fn delay(milliseconds: f64) {
         delay_ms(milliseconds as u64);
     }
 }
+
 pub fn precise_delay_ns(nanoseconds: f64) {
     if let Some(cpu_freq) = get_cpu_frequency_hz() {
         let start_tsc = unsafe { core::arch::x86_64::_rdtsc() };

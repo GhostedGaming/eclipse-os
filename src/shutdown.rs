@@ -1,19 +1,7 @@
 use core::arch::asm;
 
 pub fn shutdown() {
-    // Methods that work on real hardware (in order of reliability)
-    
-    // Method 1: PS/2 Keyboard Controller Reset (MOST RELIABLE)
-    try_keyboard_reset();
-    
-    // Method 2: PCI Reset Control Register  
-    try_pci_reset();
-    
-    // Method 3: APM (fallback for older systems)
     try_apm_shutdown();
-    
-    // Last resort: halt
-    halt_system();
 }
 
 fn try_keyboard_reset() {

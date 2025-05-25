@@ -308,17 +308,14 @@ impl Parser {
         if matches!(self.peek(0), Tokens::If) {
             self.advance();
             let condition = self.expression();
-            println!("If condition evaluated to: {}", condition);
             if !matches!(self.advance(), Tokens::LeftBrace) {
                 println!("Expected '{{' after if condition");
                 return 0.0;
             }
             let mut then_result = 0.0;
             if condition != 0.0 {
-                println!("Executing 'then' block");
                 then_result = self.block();
             } else {
-                println!("Skipping 'then' block");
                 self.skip_block();
             }
             if matches!(self.peek(0), Tokens::Else) {
@@ -328,10 +325,8 @@ impl Parser {
                     return 0.0;
                 }
                 if condition == 0.0 {
-                    println!("Executing 'else' block");
                     return self.block();
                 } else {
-                    println!("Skipping 'else' block");
                     self.skip_block();
                     return then_result;
                 }
@@ -491,7 +486,6 @@ impl Parser {
                 body_end: self.current - 1,
             };
             FUNCTION_REGISTRY.lock().insert(fn_name, function);
-            println!("Function defined successfully");
             return 0.0;
         }
         self.statement()

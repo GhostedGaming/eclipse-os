@@ -19,7 +19,6 @@ pub use tokens::*;
 
 pub fn run_example() {
     let input = get_text();
-    println!("Input:\n{}", input);
 
     // Reset the global environment
     *GLOBAL_ENV.lock() = Environment::new();
@@ -71,15 +70,11 @@ pub fn run_example() {
 
     // Evaluate each code block
     for block in code_blocks {
-        println!("Evaluating: {}", block);
-
         // Tokenize and parse the block
         let tokens = lexer(&block);
         let mut parser = Parser::new(tokens);
         let result = parser.parse();
-        println!("Result: {}", result);
-
-        println!("---");
+        println!("{}", result);
     }
 }
 

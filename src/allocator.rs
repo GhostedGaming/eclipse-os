@@ -33,7 +33,7 @@ pub fn init_heap(
     };
 
     println!("Initializing heap: start={:#x}, size={:#x}", HEAP_START, HEAP_SIZE);
-    
+
     for page in page_range {
         let frame = frame_allocator
             .allocate_frame()

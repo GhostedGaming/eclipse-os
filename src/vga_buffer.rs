@@ -267,10 +267,11 @@ impl Writer {
                 self.draw_cursor();
             }
         } else {
-            // At beginning of line, play beep if not in editor
-            let editor_data_active = EDITOR_DATA.lock().active;
-            if !editor_data_active {
-                sounds::play_beep_for(10, 500);
+            self.erase_cursor();
+            self.row_position -= 1;
+
+            if self.cursor_visible {
+                self.draw_cursor();
             }
         }
     }

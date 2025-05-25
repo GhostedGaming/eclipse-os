@@ -210,6 +210,8 @@ pub async fn print_keypresses() {
                 }
             }
 
+            let writer_pos = vga_buffer::WRITER.lock().row_position();
+
             // Process the key event to get a decoded key
             if let Some(key) = keyboard.process_keyevent(key_event) {
                 match key {
@@ -235,7 +237,9 @@ pub async fn print_keypresses() {
                         match character {
                             // Handle backspace (0x08) or delete (0x7F)
                             '\u{0008}' | '\u{007F}' => {
-                                SHELL.lock().process_keypress('\u{8}');
+                                if writer_pos > 1 {
+                                    SHELL.lock().process_keypress('\u{8}');
+                                }
                             }
                             // Handle tab (0x09)
                             '\u{0009}' => {
@@ -257,16 +261,18 @@ pub async fn print_keypresses() {
                             }
                         }
                     }
+
                     // Handle raw key codes
                     DecodedKey::RawKey(key) => {
                         match key {
-                            // Handle backspace key
                             KeyCode::Backspace => {
-                                let editor_active = express_editor::EDITOR_DATA.lock().active;
-                                if editor_active {
-                                    express_editor::process_editor_key('\u{8}');
-                                } else {
-                                    SHELL.lock().process_keypress('\u{8}');
+                                if writer_pos > 1 {
+                                    let editor_active = express_editor::EDITOR_DATA.lock().active;
+                                    if editor_active {
+                                        express_editor::process_editor_key('\u{8}');
+                                    } else {
+                                        SHELL.lock().process_keypress('\u{8}');
+                                    }
                                 }
                             }
                             // Handle delete key
@@ -303,7 +309,7 @@ pub async fn print_keypresses() {
                             KeyCode::Oem7 => {
                                 let editor_active = express_editor::EDITOR_DATA.lock().active;
                                 let char_to_insert = if shift_pressed { '|' } else { '\\' };
-                                
+
                                 if editor_active {
                                     express_editor::process_editor_key(char_to_insert);
                                 } else {

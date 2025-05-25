@@ -102,8 +102,7 @@ pub fn init_editor() {
     vga_buffer::set_cursor_style(vga_buffer::CursorStyle::Block);
     
     println!("-- EXPRESS EDITOR --");
-    println!("Type your code below. Press Ctrl+C to exit and run.");
-    println!("");
+    println!("Type your code below. Press Ctrl+C to exit and run.\n");
     
     // Position cursor for input
     vga_buffer::set_cursor_position(3, 0);

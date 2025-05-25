@@ -1,5 +1,5 @@
-use alloc::string::String;
 use crate::{print, println, vga_buffer};
+use alloc::string::String;
 
 pub struct Shell {
     input_buffer: String,
@@ -32,7 +32,7 @@ impl Shell {
         // Get current cursor position before showing prompt
         let (row, col) = vga_buffer::get_cursor_position();
         print!("{}", self.prompt);
-        
+
         // Update our tracking of where the prompt and input area are
         self.prompt_row = row;
         self.prompt_col = col;
@@ -49,7 +49,8 @@ impl Shell {
                 self.cursor_position = 0;
                 self.show_prompt();
             }
-            '\u{8}' => { // Backspace
+            '\u{8}' => {
+                // Backspace
                 self.handle_backspace();
             }
             c if c.is_ascii() && !c.is_control() => {
@@ -64,7 +65,7 @@ impl Shell {
         if self.cursor_position <= self.input_buffer.len() {
             self.input_buffer.insert(self.cursor_position, c);
             self.cursor_position += 1;
-            
+
             // For simple insertion at the end, just print the character
             if self.cursor_position == self.input_buffer.len() {
                 print!("{}", c);
@@ -85,10 +86,11 @@ impl Shell {
         if self.cursor_position > 0 && !self.input_buffer.is_empty() {
             // Check if we're at the protected boundary
             let (current_row, current_col) = vga_buffer::get_cursor_position();
-            
+
             // Don't allow backspace if it would go into the prompt area
-            if current_row < self.input_start_row || 
-               (current_row == self.input_start_row && current_col <= self.input_start_col) {
+            if current_row < self.input_start_row
+                || (current_row == self.input_start_row && current_col <= self.input_start_col)
+            {
                 // Play beep sound to indicate we can't backspace further
                 crate::sounds::play_beep_for(10, 500);
                 return;
@@ -97,13 +99,14 @@ impl Shell {
             // Remove character before cursor
             self.cursor_position -= 1;
             self.input_buffer.remove(self.cursor_position);
-            
+
             // For simple backspace at the end, just use VGA backspace
             if self.cursor_position == self.input_buffer.len() {
                 // Only backspace if we're in the input area
                 let (row, col) = vga_buffer::get_cursor_position();
-                if row > self.input_start_row || 
-                   (row == self.input_start_row && col > self.input_start_col) {
+                if row > self.input_start_row
+                    || (row == self.input_start_row && col > self.input_start_col)
+                {
                     vga_buffer::backspace();
                 }
             } else {
@@ -119,22 +122,22 @@ impl Shell {
     fn redraw_input_line(&mut self) {
         // Save current cursor position
         let (current_row, current_col) = vga_buffer::get_cursor_position();
-        
+
         // Move to start of input area (NOT the prompt)
         vga_buffer::set_cursor_position(self.input_start_row, self.input_start_col);
-        
+
         // Clear only the input area by printing spaces
         let max_input_length = vga_buffer::BUFFER_WIDTH - self.input_start_col;
         for _ in 0..max_input_length {
             print!(" ");
         }
-        
+
         // Move back to start of input area
         vga_buffer::set_cursor_position(self.input_start_row, self.input_start_col);
-        
+
         // Print the current input buffer
         print!("{}", self.input_buffer);
-        
+
         // Position cursor correctly within the input
         let target_col = self.input_start_col + self.cursor_position;
         if target_col < vga_buffer::BUFFER_WIDTH {
@@ -146,12 +149,12 @@ impl Shell {
     pub fn move_cursor_left(&mut self) {
         if self.cursor_position > 0 {
             let (current_row, current_col) = vga_buffer::get_cursor_position();
-            
+
             // Don't move left if it would go into the prompt
             if current_row == self.input_start_row && current_col <= self.input_start_col {
                 return;
             }
-            
+
             self.cursor_position -= 1;
             vga_buffer::move_cursor_left(1);
         }
@@ -191,7 +194,7 @@ impl Shell {
 
         let mut parts = input.split_whitespace();
         let command = parts.next().unwrap_or("");
-        
+
         match command {
             "help" => commands::help(),
             "echo" => commands::echo(parts),
@@ -199,12 +202,13 @@ impl Shell {
                 commands::clear();
                 // After clearing, we need to reset our position tracking
                 // since clear_screen resets cursor to (0,0)
-            },
+            }
             "about" => commands::about(),
             "version" => commands::version(),
             "hello" => commands::hello(),
             "shutdown" => commands::shutdown(),
             "express" => commands::express(),
+            "time" => commands::time_test(),
             "eclipse" => {
                 println!("Eclipse OS - A modern operating system");
                 println!("Version: 0.1.1");
@@ -220,8 +224,8 @@ impl Shell {
 
 // Commands module remains the same
 pub mod commands {
-    use crate::{println, vga_buffer};
     use crate::text_editor::express_editor;
+    use crate::{println, rtc, vga_buffer};
 
     pub fn help() {
         println!("Available commands:");
@@ -272,5 +276,24 @@ pub mod commands {
     pub fn shutdown() {
         println!("Shutting down Eclipse OS...");
         crate::hlt_loop();
+    }
+
+    pub fn time_test() {
+        use crate::time;
+        
+        println!("Current time: {}", rtc::get_current_time());
+        println!("Current ticks: {}", time::get_ticks());
+        println!("Time (ms): {}", time::get_time_ms());
+        println!("Time (ns): {}", time::get_time_ns());
+
+        println!("Uptime: {}", time::get_uptime_seconds());
+
+        if let Some(precise_ns) = time::get_precise_time_ns() {
+            println!("Precise time (ns): {}", precise_ns);
+        }
+
+        if let Some(cpu_freq) = time::get_cpu_frequency_hz() {
+            println!("CPU frequency: {} Hz", cpu_freq);
+        }
     }
 }

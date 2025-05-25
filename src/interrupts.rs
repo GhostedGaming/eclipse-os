@@ -79,7 +79,12 @@ extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFr
     
     // Call time::tick() to update the system time
     crate::time::tick();
-    crate::sounds::beep_tick();
+    
+    // Only handle beep timing if there's an active timed beep
+    // This prevents interference with direct play_sound() calls
+    if crate::sounds::is_beep_active() {
+        crate::sounds::beep_tick();
+    }
     
     unsafe {
         PICS.lock()
