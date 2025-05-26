@@ -4,6 +4,7 @@ use crate::{print, println, vga_buffer};
 extern crate alloc;
 use lazy_static::lazy_static;
 use spin::Mutex;
+use crate::crude_storage::crude_storage;
 
 /// A struct to represent editor data.
 pub struct Data {
@@ -26,7 +27,7 @@ impl Data {
     }
 
     /// Updates the lines vector based on the text content
-    fn update_lines(&mut self) {
+    pub fn update_lines(&mut self) {
         use alloc::string::ToString;
         self.lines = self.text.split('\n').map(|s| s.to_string()).collect();
         if self.lines.is_empty() {
@@ -230,7 +231,9 @@ pub fn exit_editor() {
         println!("----------------------------------------");
         println!("{}", code);
         println!("----------------------------------------");
-        
+
+        crude_storage::write(code.clone());
+
         code
     }; // lock dropped here
     

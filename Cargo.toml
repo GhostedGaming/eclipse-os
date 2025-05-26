@@ -23,6 +23,9 @@ pc-keyboard = "0.7.0"
 linked_list_allocator = "0.10"
 time = { version = "0.3", default-features = false, features = ["alloc"] }
 libm = "0.2.6"
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
+postcard = { version = "1.0", default-features = false, features = ["alloc"] }
 
 [dependencies.lazy_static]
 version = "1.0"

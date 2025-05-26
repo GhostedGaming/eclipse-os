@@ -25,6 +25,7 @@ pub mod intereperter;
 pub mod coms;
 pub mod cpu;
 pub mod rtc;
+pub mod crude_storage;
 
 pub fn init() {
     gdt::init();

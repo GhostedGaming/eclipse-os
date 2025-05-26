@@ -16,7 +16,7 @@ use eclipse_os::time;
 use eclipse_os::vga_buffer::{self, Color, CursorStyle};
 use eclipse_os::{print, println, port_println};
 use eclipse_os::cpu::cpuid;
-use eclipse_os::fs;
+use eclipse_os::crude_storage::crude_storage;
 
 entry_point!(kernel_main);
 

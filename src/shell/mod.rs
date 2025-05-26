@@ -3,12 +3,12 @@ use alloc::string::String;
 
 pub struct Shell {
     input_buffer: String,
-    cursor_position: usize, // Cursor position within the input buffer
+    cursor_position: usize, 
     prompt: &'static str,
-    prompt_row: usize,      // Row where the current prompt is
-    prompt_col: usize,      // Column where the input starts (after prompt)
-    input_start_row: usize, // Row where input area starts
-    input_start_col: usize, // Column where input area starts
+    prompt_row: usize,      
+    prompt_col: usize,      
+    input_start_row: usize, 
+    input_start_col: usize, 
 }
 
 impl Shell {
@@ -208,7 +208,9 @@ impl Shell {
             "hello" => commands::hello(),
             "shutdown" => commands::shutdown(),
             "express" => commands::express(),
-            "time" => commands::time_test(),
+            "time" => commands::time_test(),            
+            "read" => commands::read(),
+            "run" => commands::run(),
             "eclipse" => {
                 println!("Eclipse OS - A modern operating system");
                 println!("Version: 0.1.1");
@@ -295,5 +297,17 @@ pub mod commands {
         if let Some(cpu_freq) = time::get_cpu_frequency_hz() {
             println!("CPU frequency: {} Hz", cpu_freq);
         }
+    }
+
+    pub fn read() {
+        use crate::crude_storage::crude_storage;
+
+        crude_storage::read();
+    }
+
+    pub fn run() {
+        use crate::crude_storage::crude_storage;
+
+        crude_storage::run();
     }
 }

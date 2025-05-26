@@ -74,7 +74,6 @@ pub fn run_example() {
         let tokens = lexer(&block);
         let mut parser = Parser::new(tokens);
         let result = parser.parse();
-        println!("{}", result);
     }
 }
 
