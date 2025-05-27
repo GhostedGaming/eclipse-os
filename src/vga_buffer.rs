@@ -270,6 +270,10 @@ impl Writer {
             self.erase_cursor();
             self.row_position -= 1;
 
+            // if self.row_position < 1 {
+            //     self.scroll_up();
+            // }
+
             if self.cursor_visible {
                 self.draw_cursor();
             }

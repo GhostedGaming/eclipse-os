@@ -229,10 +229,8 @@ impl PCSpeakerDriver {
     pub fn play_melody(&mut self, melody: Melody) {
         let sequence = match melody {
             Melody::Startup => vec![
-                MusicNote::new(Note::C4, 4, 200),
-                MusicNote::new(Note::E4, 4, 200),
-                MusicNote::new(Note::G4, 4, 200),
-                MusicNote::new(Note::C5, 4, 400),
+                MusicNote::new(Note::C4, 2, 1000),
+                MusicNote::new(Note::C5, 2, 500),
             ],
             Melody::Error => vec![
                 MusicNote::new(Note::C4, 5, 10),
@@ -254,9 +252,9 @@ impl PCSpeakerDriver {
                 MusicNote::new(Note::A4, 4, 300),
             ],
             Melody::PowerOn => vec![
-                MusicNote::new(Note::C4, 4, 200),
                 MusicNote::new(Note::C4, 3, 100),
-                MusicNote::new(Note::C4, 4, 200),
+                MusicNote::new(Note::C4, 4, 50),
+                MusicNote::new(Note::C4, 6, 25),
             ],
             Melody::TetrisTheme => vec![
                 // First phrase
