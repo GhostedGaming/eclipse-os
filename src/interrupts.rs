@@ -72,7 +72,6 @@ extern "x86-interrupt" fn double_fault_handler(
 }
 
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
-    // You can now access CPU frequency for precise timing
     if let Some(cpu_freq) = crate::time::get_cpu_frequency_hz() {
         
     }
@@ -80,11 +79,8 @@ extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFr
     // Call time::tick() to update the system time
     crate::time::tick();
     
-    // Only handle beep timing if there's an active timed beep
-    // This prevents interference with direct play_sound() calls
-    if crate::sounds::is_beep_active() {
-        crate::sounds::beep_tick();
-    }
+    // Handle all sound timing (beeps, melodies, sequences)
+    crate::pc_speaker::timer_tick();
     
     unsafe {
         PICS.lock()

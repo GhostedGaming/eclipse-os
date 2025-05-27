@@ -17,6 +17,8 @@ use eclipse_os::vga_buffer::{self, Color, CursorStyle};
 use eclipse_os::{print, println, port_println};
 use eclipse_os::cpu::cpuid;
 use eclipse_os::crude_storage::crude_storage;
+// Add this import for the PC speaker
+use eclipse_os::pc_speaker::{init_pc_speaker, play_melody, Melody, SoundEffect, play_effect};
 
 entry_point!(kernel_main);
 
@@ -49,7 +51,11 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     print_status("Panic Handler Setup", Ok(()));
     print_status("Trivial Assertion", trivial_assertion());
     print_status("Time Initialization", initiate_time());
+    print_status("PC Speaker Initialization", init_pc_speaker_status());
     print_status("Test Coms", test_port_print());
+
+    // Play startup sound after all initialization is complete
+    play_startup_sound();
 
     #[cfg(test)]
     test_main();
@@ -63,8 +69,19 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
 
 fn test_port_print() -> Result<(), ()> {
     port_println!("Test message from Eclipse OS!");
-
     Ok(())
+}
+
+/// Initialize PC Speaker and return status
+fn init_pc_speaker_status() -> Result<(), ()> {
+    init_pc_speaker();
+    Ok(())
+}
+
+/// Play the startup sound
+fn play_startup_sound() {
+    // Play the startup melody
+    play_melody(Melody::PowerOn);
 }
 
 /// Helper function to print status messages with consistent formatting
@@ -104,6 +121,8 @@ fn initiate_time() -> Result<(), ()> {
 #[cfg(not(test))]
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
+    // Play error sound on panic
+    play_melody(Melody::Error);
     println!("{}", info);
     eclipse_os::hlt_loop();
 }
@@ -122,6 +141,7 @@ async fn example_task() {
     let number = async_number().await;
     let success = number == 42;
     print_status(&format!("Async Number [{}]", number), if success { Ok(()) } else { Err(()) });
+
     print_ascii();
 }
 

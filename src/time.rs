@@ -82,14 +82,14 @@ pub fn get_time_ns() -> u64 {
 }
 
 // High precision timing using TSC if available
-pub fn get_precise_time_ns() -> Option<u64> {
-    if let Some(cpu_freq) = unsafe { CPU_FREQUENCY_HZ } {
-        let tsc = unsafe { core::arch::x86_64::_rdtsc() };
-        Some((tsc * 1_000_000_000) / cpu_freq)
-    } else {
-        None
-    }
-}
+// pub fn get_precise_time_ns() -> Option<u64> {
+//     if let Some(cpu_freq) = unsafe { CPU_FREQUENCY_HZ } {
+//         let tsc = unsafe { core::arch::x86_64::_rdtsc() };
+//         Some((tsc * 1_000_000_000) / cpu_freq)
+//     } else {
+//         None
+//     }
+// }
 
 pub fn get_current_time() -> DateTime {
     rtc::get_current_time()

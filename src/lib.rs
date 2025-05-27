@@ -19,7 +19,7 @@ pub mod shell;
 pub mod time;
 pub mod shutdown;
 pub mod fs;
-pub mod sounds;
+pub mod pc_speaker;
 pub mod text_editor;
 pub mod intereperter;
 pub mod coms;

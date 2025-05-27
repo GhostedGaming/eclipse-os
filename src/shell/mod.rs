@@ -1,4 +1,5 @@
 use crate::{print, println, vga_buffer};
+use crate::pc_speaker::{play_melody, Melody};
 use alloc::string::String;
 
 pub struct Shell {
@@ -92,7 +93,7 @@ impl Shell {
                 || (current_row == self.input_start_row && current_col <= self.input_start_col)
             {
                 // Play beep sound to indicate we can't backspace further
-                crate::sounds::play_beep_for(10, 500);
+                crate::pc_speaker::beep(500, 10);
                 return;
             }
 
@@ -115,7 +116,7 @@ impl Shell {
             }
         } else {
             // At beginning of input, just make a beep sound
-            crate::sounds::play_beep_for(10, 500);
+            crate::pc_speaker::beep(500, 10);
         }
     }
 
@@ -217,6 +218,7 @@ impl Shell {
                 println!("Built with Rust");
             }
             _ => {
+                play_melody(Melody::Error);
                 println!("Unknown command: '{}'", command);
                 println!("Type 'help' for available commands.");
             }
@@ -290,9 +292,9 @@ pub mod commands {
 
         println!("Uptime: {}", time::get_uptime_seconds());
 
-        if let Some(precise_ns) = time::get_precise_time_ns() {
-            println!("Precise time (ns): {}", precise_ns);
-        }
+        // if let Some(precise_ns) = time::get_precise_time_ns() {
+        //     println!("Precise time (ns): {}", precise_ns);
+        // }
 
         if let Some(cpu_freq) = time::get_cpu_frequency_hz() {
             println!("CPU frequency: {} Hz", cpu_freq);
@@ -306,7 +308,7 @@ pub mod commands {
     }
 
     pub fn run() {
-        use crate::crude_storage::crude_storage;
+        use crate::crude_storage::crude_storage; // Rhymes with grug
 
         crude_storage::run();
     }
