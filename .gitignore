@@ -2,3 +2,9 @@
 **/*.rs.bk
 
 .vscode
+
+/out
+/esp
+/iso
+*.img
+*.iso
