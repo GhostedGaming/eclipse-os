@@ -3,7 +3,7 @@ build-std = ["core", "compiler_builtins", "alloc"]
 build-std-features = ["compiler-builtins-mem"]
 
 [build]
-target = "x86_64-eclipse_os.json"
+target = "x86_64-unknown-uefi"
 
-[target.'cfg(target_os = "none")']
-runner = "bootimage runner"
+# [target.'cfg(target_os = "none")']
+# runner = "bootimage runner"

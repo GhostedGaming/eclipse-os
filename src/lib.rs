@@ -22,7 +22,6 @@ pub mod fs;
 pub mod pc_speaker;
 pub mod text_editor;
 pub mod intereperter;
-pub mod coms;
 pub mod cpu;
 pub mod rtc;
 pub mod crude_storage;
@@ -85,19 +84,19 @@ pub fn hlt_loop() -> ! {
     }
 }
 
-#[cfg(test)]
-use bootloader::{BootInfo, entry_point};
+// #[cfg(test)]
+// use bootloader::{BootInfo, entry_point};
 
-#[cfg(test)]
-entry_point!(test_kernel_main);
+// #[cfg(test)]
+// entry_point!(test_kernel_main);
 
 /// Entry point for `cargo xtest`
-#[cfg(test)]
-fn test_kernel_main(_boot_info: &'static BootInfo) -> ! {
-    init();
-    test_main();
-    hlt_loop();
-}
+// #[cfg(test)]
+// fn test_kernel_main(_boot_info: &'static BootInfo) -> ! {
+//     init();
+//     test_main();
+//     hlt_loop();
+// }
 
 #[cfg(test)]
 #[panic_handler]

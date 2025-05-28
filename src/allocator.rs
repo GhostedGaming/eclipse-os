@@ -1,11 +1,14 @@
-use alloc::alloc::{GlobalAlloc, Layout};
+use alloc::{
+    alloc::{GlobalAlloc, Layout},
+    vec::Vec,
+};
 use core::ptr::null_mut;
 use fixed_size_block::FixedSizeBlockAllocator;
+use uefi::{boot::MemoryType, mem::memory_map::MemoryMap};
 use x86_64::{
-    VirtAddr,
     structures::paging::{
-        FrameAllocator, Mapper, Page, PageTableFlags, Size4KiB, mapper::MapToError,
-    },
+        mapper::MapToError, FrameAllocator, Mapper, Page, PageTableFlags, PhysFrame, Size4KiB
+    }, VirtAddr
 };
 
 use crate::println;
@@ -20,6 +23,51 @@ pub const HEAP_SIZE: usize = 100 * 1024; // 1MiB
 #[global_allocator]
 static ALLOCATOR: Locked<FixedSizeBlockAllocator> = Locked::new(FixedSizeBlockAllocator::new());
 
+pub fn init_heap_uefi(
+    mapper: &mut impl Mapper<Size4KiB>,
+    frame_allocator: &mut impl FrameAllocator<Size4KiB>,
+) -> Result<(), MapToError<Size4KiB>> {
+    let memory_map = uefi::boot::memory_map(MemoryType::CONVENTIONAL).expect("Failed to get UEFI memory map");
+    // 1. Find a usable region in the UEFI memory map
+    let usable_region = memory_map
+        .entries()
+        .find(|desc| desc.ty == MemoryType::CONVENTIONAL)
+        .expect("No usable memory regions found in the memory map");
+
+    let phys_start = align_up(usable_region.phys_start as usize, 4096);
+    let phys_end = phys_start + (usable_region.page_count as usize * 4096);
+
+    if phys_end - phys_start < HEAP_SIZE {
+        panic!("Not enough usable memory for heap");
+    }
+
+    // 2. Map this physical region to HEAP_START in the virtual address space
+    let heap_start_virt = VirtAddr::new(HEAP_START as u64);
+    let heap_start_phys = phys_start as u64;
+
+    let page_range = {
+        let heap_end_virt = heap_start_virt + HEAP_SIZE - 1u64;
+        let heap_start_page = Page::containing_address(heap_start_virt);
+        let heap_end_page = Page::containing_address(heap_end_virt);
+        Page::range_inclusive(heap_start_page, heap_end_page)
+    };
+
+    for (i, page) in page_range.enumerate() {
+        let frame_addr = heap_start_phys + (i as u64) * 4096;
+        let frame = PhysFrame::containing_address(x86_64::PhysAddr::new(frame_addr));
+        let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
+        unsafe { mapper.map_to(page, frame, flags, frame_allocator)?.flush() };
+    }
+
+    // 3. Initialize the allocator at HEAP_START
+    unsafe {
+        ALLOCATOR.lock().init(HEAP_START, HEAP_SIZE);
+    }
+    println!("Heap allocator initialized for UEFI");
+    Ok(())
+}
+
+
 pub fn init_heap(
     mapper: &mut impl Mapper<Size4KiB>,
     frame_allocator: &mut impl FrameAllocator<Size4KiB>,
@@ -32,7 +80,10 @@ pub fn init_heap(
         Page::range_inclusive(heap_start_page, heap_end_page)
     };
 
-    println!("Initializing heap: start={:#x}, size={:#x}", HEAP_START, HEAP_SIZE);
+    println!(
+        "Initializing heap: start={:#x}, size={:#x}",
+        HEAP_START, HEAP_SIZE
+    );
 
     for page in page_range {
         let frame = frame_allocator
@@ -63,7 +114,11 @@ unsafe impl<A: GlobalAlloc> GlobalAlloc for DebugAllocator<A> {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let ptr = self.0.alloc(layout);
         if ptr.is_null() {
-            println!("ALLOCATION FAILED: size={}, align={}", layout.size(), layout.align());
+            println!(
+                "ALLOCATION FAILED: size={}, align={}",
+                layout.size(),
+                layout.align()
+            );
         }
         ptr
     }

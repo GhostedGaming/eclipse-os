@@ -13,7 +13,6 @@ name = "stack_overflow"
 harness = false
 
 [dependencies]
-bootloader = { version = "0.9", features = ["map_physical_memory"] }
 volatile = "0.2.6"
 spin = "0.5.2"
 x86_64 = "0.14.2"
@@ -26,6 +25,8 @@ libm = "0.2.6"
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 postcard = { version = "1.0", default-features = false, features = ["alloc"] }
+uefi = "0.35.0"
+heapless = "0.8.0"
 
 [dependencies.lazy_static]
 version = "1.0"
