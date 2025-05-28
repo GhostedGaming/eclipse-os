@@ -1,7 +1,7 @@
 use alloc::{vec, vec::Vec};
 use core::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use spin::Mutex;
-use x86_64::instructions::port::Port; // You'll need to add `spin = "0.9"` to your Cargo.toml
+use x86_64::instructions::port::Port;
 
 // PIT (Programmable Interval Timer) constants
 const PIT_FREQUENCY: u32 = 1193182; // More precise base frequency

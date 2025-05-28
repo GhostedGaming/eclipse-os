@@ -1,7 +1,7 @@
 use alloc::{string::{String, ToString}, vec::Vec};
 use lazy_static::lazy_static;
 use spin::Mutex;
-use crate::{intereperter::run, text_editor::{self, express_editor::EDITOR_DATA}};
+use crate::{intereperter::run, shell, text_editor::{self, express_editor::EDITOR_DATA}};
 
 use crate::println;
 
@@ -18,7 +18,7 @@ pub struct Information {
 pub fn write(input: String) {
     let mut entries = ENTRIES.lock();
     entries.push(Information {
-        name: "default".to_string(),
+        name: "Hello".to_string(),
         content: input,
     });
 }
@@ -51,10 +51,9 @@ pub fn run() {
         {
             let mut editor_data = EDITOR_DATA.lock();
             editor_data.text = content;
-            editor_data.update_lines(); // Make sure lines are updated
+            editor_data.update_lines();
         }
-        
-        // Now run
+
         run::run_example();
     } else {
         println!("No code stored to execute.");

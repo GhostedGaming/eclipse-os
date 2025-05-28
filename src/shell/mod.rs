@@ -201,8 +201,6 @@ impl Shell {
             "echo" => commands::echo(parts),
             "clear" => {
                 commands::clear();
-                // After clearing, we need to reset our position tracking
-                // since clear_screen resets cursor to (0,0)
             }
             "about" => commands::about(),
             "version" => commands::version(),
@@ -228,8 +226,10 @@ impl Shell {
 
 // Commands module remains the same
 pub mod commands {
+    use alloc::string::{String, ToString};
+
     use crate::text_editor::express_editor;
-    use crate::{println, rtc, vga_buffer};
+    use crate::{crude_storage, println, rtc, vga_buffer};
 
     pub fn help() {
         println!("Available commands:");

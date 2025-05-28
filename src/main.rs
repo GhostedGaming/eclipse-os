@@ -16,9 +16,8 @@ use eclipse_os::time;
 use eclipse_os::vga_buffer::{self, Color, CursorStyle};
 use eclipse_os::{print, println};
 use eclipse_os::cpu::cpuid;
-use eclipse_os::crude_storage::crude_storage;
 use eclipse_os::coms::{init_serial, send_serial_data};
-use eclipse_os::pc_speaker::{init_pc_speaker, play_melody, Melody, SoundEffect, play_effect};
+// use eclipse_os::pc_speaker::{init_pc_speaker, play_melody, Melody,};
 
 entry_point!(kernel_main);
 
@@ -74,10 +73,10 @@ fn test_port_print() -> Result<(), ()> {
 }
 
 /// Initialize PC Speaker and return status
-// fn init_pc_speaker_status() -> Result<(), ()> {
-//     init_pc_speaker();
-//     Ok(())
-// }
+fn init_pc_speaker_status() -> Result<(), ()> {
+    // init_pc_speaker();
+    Ok(())
+}
 
 /// Play the startup sound
 fn play_startup_sound() {
@@ -123,7 +122,7 @@ fn initiate_time() -> Result<(), ()> {
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     // Play error sound on panic
-    play_melody(Melody::Error);
+    // play_melody(Melody::Error);
     println!("{}", info);
     eclipse_os::hlt_loop();
 }
