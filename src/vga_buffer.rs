@@ -574,7 +574,13 @@ pub fn _print(args: fmt::Arguments) {
 /// Like the `print!` macro in the standard library, but prints to the VGA text buffer.
 #[macro_export]
 macro_rules! print {
-    ($($arg:tt)*) => ($crate::vga_buffer::_print(format_args!($($arg)*)));
+    ($($arg:tt)*) => {{
+        use core::fmt::Write;
+        let mut s = heapless::String::<256>::new();
+        let _ = write!(&mut s, $($arg)*);
+        $crate::serial::info(&s);
+        $crate::vga_buffer::_print(format_args!($($arg)*));
+    }};
 }
 
 /// Like the `println!` macro in the standard library, but prints to the VGA text buffer.

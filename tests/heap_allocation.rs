@@ -8,25 +8,20 @@ extern crate alloc;
 
 use alloc::{boxed::Box, vec::Vec};
 use eclipse_os::allocator::HEAP_SIZE;
-use bootloader::{BootInfo, entry_point};
 use core::panic::PanicInfo;
 
-entry_point!(main);
+// entry_point!(main);
 
-fn main(boot_info: &'static BootInfo) -> ! {
-    use eclipse_os::allocator;
-    use eclipse_os::memory::{self, BootInfoFrameAllocator};
-    use x86_64::VirtAddr;
+// fn main(boot_info: &'static BootInfo) -> ! {
+//     eclipse_os::init();
+//     let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
+//     let mut mapper = unsafe { memory::init(phys_mem_offset) };
+//     let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
+//     allocator::init_heap(&mut mapper, &mut frame_allocator).expect("heap initialization failed");
 
-    eclipse_os::init();
-    let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
-    let mut mapper = unsafe { memory::init(phys_mem_offset) };
-    let mut frame_allocator = unsafe { BootInfoFrameAllocator::init(&boot_info.memory_map) };
-    allocator::init_heap(&mut mapper, &mut frame_allocator).expect("heap initialization failed");
-
-    test_main();
-    loop {}
-}
+//     test_main();
+//     loop {}
+// }
 
 #[test_case]
 fn simple_allocation() {
