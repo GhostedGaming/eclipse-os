@@ -72,16 +72,14 @@ extern "x86-interrupt" fn double_fault_handler(
 }
 
 extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
-    if let Some(cpu_freq) = crate::time::get_cpu_frequency_hz() {
-        
-    }
-    
+    if let Some(cpu_freq) = crate::time::get_cpu_frequency_hz() {}
+
     // Call time::tick() to update the system time
     crate::time::tick();
-    
+
     // Handle all sound timing (beeps, melodies, sequences)
     crate::pc_speaker::timer_tick();
-    
+
     unsafe {
         PICS.lock()
             .notify_end_of_interrupt(InterruptIndex::Timer.as_u8());

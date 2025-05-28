@@ -1,7 +1,7 @@
-use super::{align_up, Locked};
+use super::{Locked, align_up};
 use alloc::alloc::{GlobalAlloc, Layout};
-use core::ptr::{null_mut, NonNull};
 use core::mem;
+use core::ptr::{NonNull, null_mut};
 
 /// The block sizes to use.
 const BLOCK_SIZES: &[usize] = &[8, 16, 32, 64, 128, 256, 512, 1024, 2048];
@@ -21,8 +21,12 @@ impl FixedSizeBlockAllocator {
     }
 
     pub unsafe fn init(&mut self, heap_start: usize, heap_size: usize) {
-        unsafe { self.fallback_allocator.init(heap_start as *mut u8, heap_size) };
-    }}
+        unsafe {
+            self.fallback_allocator
+                .init(heap_start as *mut u8, heap_size)
+        };
+    }
+}
 
 struct ListNode {
     next: Option<&'static mut ListNode>,
@@ -48,7 +52,9 @@ unsafe impl GlobalAlloc for Locked<FixedSizeBlockAllocator> {
                         let block_size = BLOCK_SIZES[index];
                         let block_align = block_size;
                         let layout = Layout::from_size_align(block_size, block_align).unwrap();
-                        allocator.fallback_allocator.allocate_first_fit(layout)
+                        allocator
+                            .fallback_allocator
+                            .allocate_first_fit(layout)
                             .ok()
                             .map_or(null_mut(), |allocation| allocation.as_ptr())
                     }
@@ -56,7 +62,9 @@ unsafe impl GlobalAlloc for Locked<FixedSizeBlockAllocator> {
             }
             None => {
                 // use fallback allocator for large allocations
-                allocator.fallback_allocator.allocate_first_fit(layout)
+                allocator
+                    .fallback_allocator
+                    .allocate_first_fit(layout)
                     .ok()
                     .map_or(null_mut(), |allocation| allocation.as_ptr())
             }

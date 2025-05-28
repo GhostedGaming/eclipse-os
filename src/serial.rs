@@ -64,6 +64,30 @@ pub fn info(text: &str) {
     serial_write_str("\n");
 }
 
+pub fn info_hex(value: u64) {
+    serial_write_str("[INFO] 0x");
+    // Print value as hexadecimal without using format!
+    let mut buf = [0u8; 16];
+    let mut i = buf.len();
+    let mut v = value;
+    if v == 0 {
+        serial_write_str("0");
+    } else {
+        while v != 0 {
+            i -= 1;
+            let digit = (v & 0xF) as u8;
+            buf[i] = match digit {
+                0..=9 => b'0' + digit,
+                10..=15 => b'A' + (digit - 10),
+                _ => b'?', // Should not happen
+            };
+            v >>= 4;
+        }
+        serial_write_str(core::str::from_utf8(&buf[i..]).unwrap());
+    }
+    serial_write_str("\n");
+}
+
 pub fn error(text: &str) {
     serial_write_str("[ERROR] ");
     serial_write_str(text);

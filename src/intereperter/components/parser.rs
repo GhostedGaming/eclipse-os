@@ -1,9 +1,10 @@
-use core::arch::asm;
 use alloc::string::ToString;
 use alloc::vec::Vec;
+use core::arch::asm;
 
-use crate::{print, println};
 use super::Environment;
+use super::FUNCTION_REGISTRY;
+use super::Function;
 use super::GLOBAL_ENV;
 use super::Tokens;
 use super::add;
@@ -17,8 +18,7 @@ use super::multiply;
 use super::not_equals;
 use super::power;
 use super::subtract;
-use super::FUNCTION_REGISTRY;
-use super::Function;
+use crate::{print, println};
 
 pub struct Parser {
     tokens: Vec<Tokens>,
@@ -526,12 +526,48 @@ impl Parser {
             let operator = self.advance().clone();
             let right = self.term();
             expr = match operator {
-                Tokens::Equal => if equals(expr, right) { 1.0 } else { 0.0 },
-                Tokens::NotEqual => if not_equals(expr, right) { 1.0 } else { 0.0 },
-                Tokens::LessThan => if less_than(expr, right) { 1.0 } else { 0.0 },
-                Tokens::GreaterThan => if greater_than(expr, right) { 1.0 } else { 0.0 },
-                Tokens::LessThanEqual => if less_than_equal(expr, right) { 1.0 } else { 0.0 },
-                Tokens::GreaterThanEqual => if greater_than_equal(expr, right) { 1.0 } else { 0.0 },
+                Tokens::Equal => {
+                    if equals(expr, right) {
+                        1.0
+                    } else {
+                        0.0
+                    }
+                }
+                Tokens::NotEqual => {
+                    if not_equals(expr, right) {
+                        1.0
+                    } else {
+                        0.0
+                    }
+                }
+                Tokens::LessThan => {
+                    if less_than(expr, right) {
+                        1.0
+                    } else {
+                        0.0
+                    }
+                }
+                Tokens::GreaterThan => {
+                    if greater_than(expr, right) {
+                        1.0
+                    } else {
+                        0.0
+                    }
+                }
+                Tokens::LessThanEqual => {
+                    if less_than_equal(expr, right) {
+                        1.0
+                    } else {
+                        0.0
+                    }
+                }
+                Tokens::GreaterThanEqual => {
+                    if greater_than_equal(expr, right) {
+                        1.0
+                    } else {
+                        0.0
+                    }
+                }
                 _ => unreachable!(),
             };
         }
@@ -582,7 +618,13 @@ impl Parser {
             let right = self.unary();
             return match operator {
                 Tokens::Minus => -right,
-                Tokens::Not => if right == 0.0 { 1.0 } else { 0.0 },
+                Tokens::Not => {
+                    if right == 0.0 {
+                        1.0
+                    } else {
+                        0.0
+                    }
+                }
                 _ => unreachable!(),
             };
         }

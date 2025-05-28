@@ -84,7 +84,7 @@ impl Future for Sleep {
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let current_ticks = crate::time::get_ticks();
-        
+
         if current_ticks >= self.target_ticks {
             Poll::Ready(())
         } else {

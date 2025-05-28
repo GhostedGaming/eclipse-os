@@ -1,4 +1,7 @@
-use alloc::{string::{String, ToString}, vec::Vec};
+use alloc::{
+    string::{String, ToString},
+    vec::Vec,
+};
 
 use crate::println;
 
@@ -16,12 +19,12 @@ pub enum Tokens {
     Else,
     While,
     Return,
-    
+
     // Time/Delay functions
     Delay,
     DelayMicroseconds,
     DelayMilliseconds,
-    
+
     // Literals
     True,
     False,
@@ -29,45 +32,45 @@ pub enum Tokens {
     Number(f64),
     StringLiteral(String),
     String(String),
-    
+
     // Arithmetic Operators
-    Plus,           // +
-    Minus,          // -
-    Multiply,       // *
-    Divide,         // /
-    Power,          // **
-    Increment,      // ++
-    Decrement,      // --
-    
+    Plus,      // +
+    Minus,     // -
+    Multiply,  // *
+    Divide,    // /
+    Power,     // **
+    Increment, // ++
+    Decrement, // --
+
     // Assignment
-    Assign,         // =
-    
+    Assign, // =
+
     // Comparison Operators
-    Equal,          // ==
-    NotEqual,       // !=
-    LessThan,       // <
-    GreaterThan,    // >
-    LessThanEqual,  // <=
+    Equal,            // ==
+    NotEqual,         // !=
+    LessThan,         // <
+    GreaterThan,      // >
+    LessThanEqual,    // <=
     GreaterThanEqual, // >=
-    
+
     // Logical Operators
-    And,            // &&
-    Or,             // ||
-    Not,            // !
-    
+    And, // &&
+    Or,  // ||
+    Not, // !
+
     // Delimiters
-    LeftParen,      // (
-    RightParen,     // )
-    LeftBrace,      // {
-    RightBrace,     // }
-    LeftBracket,    // [
-    RightBracket,   // ]
-    
+    LeftParen,    // (
+    RightParen,   // )
+    LeftBrace,    // {
+    RightBrace,   // }
+    LeftBracket,  // [
+    RightBracket, // ]
+
     // Punctuation
-    Semicolon,      // ;
-    Comma,          // ,
-    Dot,            // .
-    
+    Semicolon, // ;
+    Comma,     // ,
+    Dot,       // .
+
     // Special
     EOF,
     Newline,

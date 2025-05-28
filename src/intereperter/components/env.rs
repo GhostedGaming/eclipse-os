@@ -1,6 +1,6 @@
 use alloc::{collections::BTreeMap, string::String, vec::Vec};
-use spin::Mutex;
 use lazy_static::lazy_static;
+use spin::Mutex;
 
 use crate::intereperter::components::tokens::Tokens;
 
@@ -42,5 +42,6 @@ impl Environment {
 
 lazy_static! {
     pub static ref GLOBAL_ENV: Mutex<Environment> = Mutex::new(Environment::new());
-    pub static ref FUNCTION_REGISTRY: Mutex<BTreeMap<String, Function>> = Mutex::new(BTreeMap::new());
+    pub static ref FUNCTION_REGISTRY: Mutex<BTreeMap<String, Function>> =
+        Mutex::new(BTreeMap::new());
 }

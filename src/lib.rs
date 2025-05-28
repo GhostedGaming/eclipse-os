@@ -8,23 +8,22 @@
 extern crate alloc;
 use core::panic::PanicInfo;
 
-pub mod allocator;
+pub mod cpu;
+pub mod crude_storage;
+pub mod fs;
 pub mod gdt;
+pub mod intereperter;
 pub mod interrupts;
 pub mod memory;
-pub mod serial;
-pub mod task;
-pub mod vga_buffer;
-pub mod shell;
-pub mod time;
-pub mod shutdown;
-pub mod fs;
 pub mod pc_speaker;
-pub mod text_editor;
-pub mod intereperter;
-pub mod cpu;
 pub mod rtc;
-pub mod crude_storage;
+pub mod serial;
+pub mod shell;
+pub mod shutdown;
+pub mod task;
+pub mod text_editor;
+pub mod time;
+pub mod vga_buffer;
 
 pub fn init() {
     gdt::init();

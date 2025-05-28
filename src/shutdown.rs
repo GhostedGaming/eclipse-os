@@ -9,8 +9,8 @@ fn try_keyboard_reset() {
         // This works on 99% of real x86 hardware
         // PS/2 controller is present even on modern systems
         asm!(
-            "mov al, 0xFE",     // Reset pulse command
-            "out 0x64, al",     // PS/2 controller command port
+            "mov al, 0xFE", // Reset pulse command
+            "out 0x64, al", // PS/2 controller command port
             options(nostack)
         );
     }
@@ -20,8 +20,8 @@ fn try_pci_reset() {
     unsafe {
         // Works on most modern systems with PCI
         asm!(
-            "mov dx, 0xCF9",    // PCI reset control register
-            "mov al, 0x06",     // Full system reset
+            "mov dx, 0xCF9", // PCI reset control register
+            "mov al, 0x06",  // Full system reset
             "out dx, al",
             options(nostack)
         );
@@ -33,7 +33,7 @@ fn try_apm_shutdown() {
     unsafe {
         asm!(
             "mov ax, 0x5307",
-            "mov bx, 0x0001", 
+            "mov bx, 0x0001",
             "mov cx, 0x0003",
             "int 0x15",
             options(nostack)

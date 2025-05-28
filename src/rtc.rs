@@ -1,5 +1,5 @@
-use x86_64::instructions::port::Port;
 use core::fmt;
+use x86_64::instructions::port::Port;
 
 #[derive(Debug, Clone, Copy)]
 pub struct DateTime {
@@ -112,8 +112,8 @@ impl RTC {
 }
 
 // Global RTC instance
-use spin::Mutex;
 use lazy_static::lazy_static;
+use spin::Mutex;
 
 lazy_static! {
     static ref RTC_INSTANCE: Mutex<RTC> = Mutex::new(RTC::new());

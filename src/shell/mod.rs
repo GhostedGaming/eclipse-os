@@ -1,15 +1,15 @@
+use crate::pc_speaker::{Melody, play_melody};
 use crate::{print, println, vga_buffer};
-use crate::pc_speaker::{play_melody, Melody};
 use alloc::string::String;
 
 pub struct Shell {
     input_buffer: String,
-    cursor_position: usize, 
+    cursor_position: usize,
     prompt: &'static str,
-    prompt_row: usize,      
-    prompt_col: usize,      
-    input_start_row: usize, 
-    input_start_col: usize, 
+    prompt_row: usize,
+    prompt_col: usize,
+    input_start_row: usize,
+    input_start_col: usize,
 }
 
 impl Shell {
@@ -207,7 +207,7 @@ impl Shell {
             "hello" => commands::hello(),
             "shutdown" => commands::shutdown(),
             "express" => commands::express(),
-            "time" => commands::time_test(),            
+            "time" => commands::time_test(),
             "read" => commands::read(),
             "run" => commands::run(),
             "eclipse" => {
@@ -284,7 +284,7 @@ pub mod commands {
 
     pub fn time_test() {
         use crate::time;
-        
+
         println!("Current time: {}", rtc::get_current_time());
         println!("Current ticks: {}", time::get_ticks());
         println!("Time (ms): {}", time::get_time_ms());

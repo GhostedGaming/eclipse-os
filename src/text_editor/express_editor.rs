@@ -1,10 +1,10 @@
+use crate::{print, println, vga_buffer};
 use alloc::string::String;
 use alloc::vec::Vec;
-use crate::{print, println, vga_buffer};
 extern crate alloc;
+use crate::crude_storage::crude_storage;
 use lazy_static::lazy_static;
 use spin::Mutex;
-use crate::crude_storage::crude_storage;
 
 /// A struct to represent editor data.
 pub struct Data {
@@ -97,14 +97,14 @@ pub fn init_editor() {
         editor_data.lines = Vec::new();
         editor_data.update_lines(); // Initialize with empty line
     }
-    
+
     vga_buffer::clear_screen();
     vga_buffer::set_cursor_visibility(true);
     vga_buffer::set_cursor_style(vga_buffer::CursorStyle::Block);
-    
+
     println!("-- EXPRESS EDITOR --");
     println!("Type your code below. Press Ctrl+C to exit and run.\n");
-    
+
     // Position cursor for input
     vga_buffer::set_cursor_position(3, 0);
 }
@@ -112,22 +112,23 @@ pub fn init_editor() {
 /// Handles a single character input in the editor.
 pub fn process_editor_key(c: char) {
     let mut editor_data = EDITOR_DATA.lock();
-    
+
     match c {
-        '\u{8}' => { // Backspace
+        '\u{8}' => {
+            // Backspace
             if !editor_data.text.is_empty() && editor_data.cursor > 0 {
                 editor_data.backspace();
                 vga_buffer::backspace();
             }
-        },
+        }
         '\n' => {
             editor_data.insert_newline();
             println!();
-        },
+        }
         c if c.is_ascii() && !c.is_control() => {
             editor_data.insert_char(c);
             print!("{}", c);
-        },
+        }
         _ => {} // Ignore other characters
     }
 }
@@ -143,7 +144,7 @@ pub fn move_cursor_left() {
         } else if editor_data.cursor_x > 0 {
             editor_data.cursor_x -= 1;
         }
-        
+
         editor_data.cursor -= 1;
         vga_buffer::move_cursor_left(1);
     }
@@ -154,16 +155,17 @@ pub fn move_cursor_right() {
     let mut editor_data = EDITOR_DATA.lock();
     if editor_data.active && editor_data.cursor < editor_data.text.len() {
         let current_line_length = editor_data.get_current_line_length();
-        
-        if editor_data.cursor_x >= current_line_length && 
-            editor_data.cursor_y < editor_data.lines.len() - 1 {
+
+        if editor_data.cursor_x >= current_line_length
+            && editor_data.cursor_y < editor_data.lines.len() - 1
+        {
             // Move to the beginning of the next line
             editor_data.cursor_y += 1;
             editor_data.cursor_x = 0;
         } else if editor_data.cursor_x < current_line_length {
             editor_data.cursor_x += 1;
         }
-        
+
         editor_data.cursor += 1;
         vga_buffer::move_cursor_right(1);
     }
@@ -175,11 +177,11 @@ pub fn move_cursor_up() {
     if editor_data.active && editor_data.cursor_y > 0 {
         editor_data.cursor_y -= 1;
         let prev_line_length = editor_data.lines[editor_data.cursor_y].len();
-        
+
         if editor_data.cursor_x > prev_line_length {
             editor_data.cursor_x = prev_line_length;
         }
-        
+
         // Recalculate absolute cursor position
         let mut pos = 0;
         for i in 0..editor_data.cursor_y {
@@ -187,7 +189,7 @@ pub fn move_cursor_up() {
         }
         pos += editor_data.cursor_x;
         editor_data.cursor = pos;
-        
+
         vga_buffer::move_cursor_up(1);
     }
 }
@@ -198,11 +200,11 @@ pub fn move_cursor_down() {
     if editor_data.active && editor_data.cursor_y < editor_data.lines.len() - 1 {
         editor_data.cursor_y += 1;
         let next_line_length = editor_data.lines[editor_data.cursor_y].len();
-        
+
         if editor_data.cursor_x > next_line_length {
             editor_data.cursor_x = next_line_length;
         }
-        
+
         // Recalculate absolute cursor position
         let mut pos = 0;
         for i in 0..editor_data.cursor_y {
@@ -210,7 +212,7 @@ pub fn move_cursor_down() {
         }
         pos += editor_data.cursor_x;
         editor_data.cursor = pos;
-        
+
         vga_buffer::move_cursor_down(1);
     }
 }
@@ -221,11 +223,11 @@ pub fn exit_editor() {
         let mut editor_data = EDITOR_DATA.lock();
         editor_data.active = false;
         let code = editor_data.text.clone();
-        
+
         vga_buffer::clear_screen();
         vga_buffer::set_cursor_visibility(true);
         vga_buffer::set_color(vga_buffer::Color::White, vga_buffer::Color::Black);
-        
+
         println!("-- Exited Express Editor --");
         println!("Running code:");
         println!("----------------------------------------");
@@ -236,19 +238,19 @@ pub fn exit_editor() {
 
         code
     }; // lock dropped here
-    
+
     // Run the interpreter with the code
     if !code_to_run.trim().is_empty() {
         println!("Executing code...");
-        
+
         // Actually call the interpreter here!
         crate::intereperter::run::run_example();
-        
+
         println!("Code execution completed.");
     } else {
         println!("No code to execute.");
     }
-    
+
     // Clear the buffer after running
     {
         let mut editor_data = EDITOR_DATA.lock();
@@ -258,7 +260,7 @@ pub fn exit_editor() {
         editor_data.cursor_y = 0;
         editor_data.lines.clear();
     }
-    
+
     // Return to shell
     println!();
     crate::task::keyboard::init_shell();
@@ -272,7 +274,7 @@ pub fn move_to_line_start() {
         let chars_to_move = editor_data.cursor_x;
         editor_data.cursor -= chars_to_move;
         editor_data.cursor_x = 0;
-        
+
         // Move VGA cursor to start of line
         vga_buffer::move_cursor_to_start_of_line();
     }
@@ -284,10 +286,10 @@ pub fn move_to_line_end() {
     if editor_data.active && editor_data.cursor_y < editor_data.lines.len() {
         let current_line_length = editor_data.lines[editor_data.cursor_y].len();
         let chars_to_move = current_line_length - editor_data.cursor_x;
-        
+
         editor_data.cursor += chars_to_move;
         editor_data.cursor_x = current_line_length;
-        
+
         // Move VGA cursor to end of line content
         vga_buffer::move_cursor_right(chars_to_move);
     }

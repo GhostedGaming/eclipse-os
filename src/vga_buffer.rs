@@ -1,9 +1,9 @@
 use crate::pc_speaker;
+use crate::text_editor::express_editor::EDITOR_DATA;
 use core::fmt;
 use lazy_static::lazy_static;
 use spin::Mutex;
 use volatile::Volatile;
-use crate::text_editor::express_editor::EDITOR_DATA;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CursorStyle {
@@ -153,16 +153,16 @@ impl Writer {
     /// Move cursor with bounds checking
     pub fn move_cursor_relative(&mut self, row_delta: i32, col_delta: i32) {
         self.erase_cursor();
-        
+
         // Calculate new position
         let new_row = (self.row_position as i32 + row_delta).max(0) as usize;
         let new_col = (self.column_position as i32 + col_delta).max(0) as usize;
-        
+
         // Clamp to bounds
         let (safe_row, safe_col) = self.clamp_position(new_row, new_col);
         self.row_position = safe_row;
         self.column_position = safe_col;
-        
+
         if self.cursor_visible {
             self.draw_cursor();
         }
@@ -242,7 +242,7 @@ impl Writer {
         if row >= BUFFER_HEIGHT {
             return;
         }
-        
+
         let blank = ScreenChar {
             ascii_character: b' ',
             color_code: self.color_code,
@@ -292,7 +292,7 @@ impl Writer {
 
     pub fn draw_cursor(&mut self) {
         let (row, col) = self.clamp_position(self.row_position, self.column_position);
-        
+
         // Save the current character under the cursor if not already saved
         if self.saved_cursor_char.is_none() {
             self.saved_cursor_char = Some(self.buffer.chars[row][col].read());
@@ -622,22 +622,25 @@ fn test_println_output() {
 #[test_case]
 fn test_cursor_movement() {
     use x86_64::instructions::interrupts;
-    
+
     interrupts::without_interrupts(|| {
         let mut writer = WRITER.lock();
-        
+
         // Test bounds checking
         writer.set_cursor_position(0, 0);
         assert_eq!(writer.get_cursor_position(), (0, 0));
-        
+
         writer.set_cursor_position(BUFFER_HEIGHT + 10, BUFFER_WIDTH + 10);
-        assert_eq!(writer.get_cursor_position(), (BUFFER_HEIGHT - 1, BUFFER_WIDTH - 1));
-        
+        assert_eq!(
+            writer.get_cursor_position(),
+            (BUFFER_HEIGHT - 1, BUFFER_WIDTH - 1)
+        );
+
         // Test relative movement
         writer.set_cursor_position(10, 10);
         writer.move_cursor_relative(-5, -5);
         assert_eq!(writer.get_cursor_position(), (5, 5));
-        
+
         // Test bounds on relative movement
         writer.move_cursor_relative(-10, -10);
         assert_eq!(writer.get_cursor_position(), (0, 0));

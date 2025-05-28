@@ -14,7 +14,7 @@ static mut BOOT_TIME: Option<DateTime> = None;
 pub fn init() {
     // Initialize CPU info first
     cpuid::init_cpu_info();
-    
+
     // Get CPU frequency for timing calculations
     if let Some(cpu_info) = cpuid::get_cpu_info() {
         if let Some(freq) = cpu_info.get_timing_frequency_hz() {
@@ -39,9 +39,13 @@ pub fn init() {
 fn configure_pit_timer() {
     // Calculate the divisor for the desired frequency
     let divisor = PIT_FREQUENCY / DESIRED_FREQUENCY;
-    
-    crate::println!("Configuring PIT: base_freq={} Hz, desired_freq={} Hz, divisor={}",
-                    PIT_FREQUENCY, DESIRED_FREQUENCY, divisor);
+
+    crate::println!(
+        "Configuring PIT: base_freq={} Hz, desired_freq={} Hz, divisor={}",
+        PIT_FREQUENCY,
+        DESIRED_FREQUENCY,
+        divisor
+    );
 
     unsafe {
         // Command port: Channel 0, Access mode lobyte/hibyte, Mode 2 (rate generator), Binary mode
@@ -50,7 +54,7 @@ fn configure_pit_timer() {
 
         // Data port for channel 0
         let mut data_port = Port::new(0x40);
-        
+
         // Send the divisor (low byte first, then high byte)
         data_port.write((divisor & 0xFF) as u8);
         data_port.write((divisor >> 8) as u8);
@@ -60,7 +64,11 @@ fn configure_pit_timer() {
         NANOSECONDS_PER_TICK = 1_000_000_000 / DESIRED_FREQUENCY as u64;
     }
 
-    crate::println!("PIT configured for {} Hz ({} ns per tick)", DESIRED_FREQUENCY, unsafe { NANOSECONDS_PER_TICK });
+    crate::println!(
+        "PIT configured for {} Hz ({} ns per tick)",
+        DESIRED_FREQUENCY,
+        unsafe { NANOSECONDS_PER_TICK }
+    );
 }
 
 pub fn tick() {
@@ -102,7 +110,7 @@ pub fn get_uptime_seconds() -> u64 {
 pub fn delay_ms(ms: u64) {
     let start_ticks = get_ticks();
     let target_ticks = start_ticks + ms;
-    
+
     while get_ticks() < target_ticks {
         core::hint::spin_loop();
     }
@@ -111,12 +119,11 @@ pub fn delay_ms(ms: u64) {
 pub fn delay_us(microseconds: u64) {
     let start_time = get_time_ns();
     let target_time = start_time + (microseconds * 1000); // Convert to nanoseconds
-    
+
     while get_time_ns() < target_time {
         core::hint::spin_loop();
     }
 }
-
 
 pub fn delay(milliseconds: f64) {
     if milliseconds > 0.0 {
@@ -129,7 +136,7 @@ pub fn precise_delay_ns(nanoseconds: f64) {
         let start_tsc = unsafe { core::arch::x86_64::_rdtsc() };
         let cycles_to_wait = (nanoseconds * cpu_freq as f64) / 1_000_000_000.0;
         let target_tsc = start_tsc + cycles_to_wait as u64;
-        
+
         while unsafe { core::arch::x86_64::_rdtsc() } < target_tsc {
             core::hint::spin_loop();
         }

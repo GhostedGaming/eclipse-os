@@ -1,7 +1,14 @@
-use alloc::{string::{String, ToString}, vec::Vec};
+use crate::{
+    intereperter::run,
+    shell,
+    text_editor::{self, express_editor::EDITOR_DATA},
+};
+use alloc::{
+    string::{String, ToString},
+    vec::Vec,
+};
 use lazy_static::lazy_static;
 use spin::Mutex;
-use crate::{intereperter::run, shell, text_editor::{self, express_editor::EDITOR_DATA}};
 
 use crate::println;
 
@@ -46,7 +53,6 @@ pub fn read_no_print() -> String {
 pub fn run() {
     let content = read_no_print();
     if !content.trim().is_empty() && content != "null" {
-        
         // Then set the content
         {
             let mut editor_data = EDITOR_DATA.lock();

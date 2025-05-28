@@ -85,10 +85,22 @@ fn get_processor_frequencies() -> (Option<u32>, Option<u32>, Option<u32>) {
     }
 
     let freq_info = unsafe { __cpuid(0x16) };
-    
-    let base_freq = if freq_info.eax != 0 { Some(freq_info.eax) } else { None };
-    let max_freq = if freq_info.ebx != 0 { Some(freq_info.ebx) } else { None };
-    let bus_freq = if freq_info.ecx != 0 { Some(freq_info.ecx) } else { None };
+
+    let base_freq = if freq_info.eax != 0 {
+        Some(freq_info.eax)
+    } else {
+        None
+    };
+    let max_freq = if freq_info.ebx != 0 {
+        Some(freq_info.ebx)
+    } else {
+        None
+    };
+    let bus_freq = if freq_info.ecx != 0 {
+        Some(freq_info.ecx)
+    } else {
+        None
+    };
 
     (base_freq, max_freq, bus_freq)
 }
@@ -101,7 +113,7 @@ fn get_tsc_frequency() -> Option<u64> {
     }
 
     let tsc_info = unsafe { __cpuid(0x15) };
-    
+
     // EAX: denominator, EBX: numerator, ECX: crystal clock frequency
     let denominator = tsc_info.eax;
     let numerator = tsc_info.ebx;
@@ -128,25 +140,29 @@ fn estimate_tsc_frequency_fallback() -> Option<u64> {
 
 pub fn print_cpu_info() {
     let cpu_info = CpuInfo::new();
-    
+
     let vendor_str = match cpu_info.vendor {
         CpuVendor::Intel => "Intel",
         CpuVendor::AMD => "AMD",
         CpuVendor::Unknown => "Unknown",
     };
-    
+
     crate::println!("CPU Vendor: {}", vendor_str);
-    
+
     if let Some(base_freq) = cpu_info.base_frequency_mhz {
         crate::println!("Base Frequency: {} MHz", base_freq);
     }
-    
+
     if let Some(max_freq) = cpu_info.max_frequency_mhz {
         crate::println!("Max Frequency: {} MHz", max_freq);
     }
-    
+
     if let Some(tsc_freq) = cpu_info.tsc_frequency_hz {
-        crate::println!("TSC Frequency: {} Hz ({} MHz)", tsc_freq, tsc_freq / 1_000_000);
+        crate::println!(
+            "TSC Frequency: {} Hz ({} MHz)",
+            tsc_freq,
+            tsc_freq / 1_000_000
+        );
     }
 }
 
@@ -155,12 +171,15 @@ static mut CPU_INFO: Option<CpuInfo> = None;
 static CPU_INFO_INIT: core::sync::atomic::AtomicBool = core::sync::atomic::AtomicBool::new(false);
 
 pub fn init_cpu_info() {
-    if CPU_INFO_INIT.compare_exchange(
-        false, 
-        true, 
-        core::sync::atomic::Ordering::SeqCst, 
-        core::sync::atomic::Ordering::SeqCst
-    ).is_ok() {
+    if CPU_INFO_INIT
+        .compare_exchange(
+            false,
+            true,
+            core::sync::atomic::Ordering::SeqCst,
+            core::sync::atomic::Ordering::SeqCst,
+        )
+        .is_ok()
+    {
         unsafe {
             CPU_INFO = Some(CpuInfo::new());
         }

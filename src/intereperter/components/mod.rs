@@ -1,9 +1,9 @@
-pub mod tokens;
 pub mod env;
-pub mod parser;
 pub mod ops;
+pub mod parser;
+pub mod tokens;
 
-pub use tokens::*;
 pub use env::*;
-pub use parser::*;
 pub use ops::*;
+pub use parser::*;
+pub use tokens::*;

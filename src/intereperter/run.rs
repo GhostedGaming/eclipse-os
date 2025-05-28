@@ -5,8 +5,8 @@ use crate::intereperter::components::env;
 use crate::intereperter::components::ops;
 use crate::intereperter::components::parser;
 use crate::intereperter::components::tokens;
+use crate::println;
 use crate::text_editor::express_editor::get_text;
-use crate::{println};
 use alloc::string::String;
 use alloc::vec::Vec;
 
