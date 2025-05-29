@@ -41,7 +41,7 @@ extern "x86-interrupt" fn spurious_interrupt_handler(stack_frame: InterruptStack
     let _ = stack_frame;
 }
 
-extern "x86-interrupt" fn test_interrupt_handler(stacsk_frame: InterruptStackFrame) {
+extern "x86-interrupt" fn test_interrupt_handler(stack_frame: InterruptStackFrame) {
     info("Test interrupt occurred!");
     let _ = stack_frame;
 }
