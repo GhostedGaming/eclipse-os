@@ -41,8 +41,48 @@ macro_rules! serial_println {
         concat!($fmt, "\n"), $($arg)*));
 }
 
+/// Logs a message to the serial port with a given log level prefix.
+/// 
+/// # Examples
+/// ```
+/// serial_log!("[INFO] ", "Hello, world!");
+/// serial_log!("[DEBUG] ", "Value: {}", 42);
+/// ```
+#[macro_export]
+macro_rules! serial_log {
+    ($level:expr, $msg:expr) => {
+        $crate::serial::serial_write_str($level);
+        $crate::serial::serial_write_str($msg);
+        $crate::serial::serial_write_str("\r\n");
+    };
+    ($level:expr, $fmt:expr, $($arg:tt)*) => {
+        $crate::serial::serial_write_str($level);
+        $crate::serial::serial_write_str(&alloc::format!($fmt, $($arg)*));
+        $crate::serial::serial_write_str("\r\n");
+    };
+}
+
+/// Logs a hexadecimal value to the serial port with a given log level prefix.
+/// 
+/// # Examples
+/// ```
+/// serial_log_hex!("[INFO] ", 0xdeadbeef);
+/// ```
+#[macro_export]
+macro_rules! serial_log_hex {
+    ($level:expr, $value:expr) => {
+        $crate::serial::serial_write_str($level);
+        $crate::serial::serial_write_str("0x");
+        $crate::serial::serial_write_hex($value);
+        $crate::serial::serial_write_str("\r\n");
+    };
+}
+
 const SERIAL_PORT: u16 = 0x3F8; // COM1
 
+/// Writes a single byte to the serial port.
+///
+/// Blocks until the port is ready to accept a byte.
 pub fn serial_write_byte(byte: u8) {
     unsafe {
         let mut line_status = Port::<u8>::new(SERIAL_PORT + 5);
@@ -52,44 +92,64 @@ pub fn serial_write_byte(byte: u8) {
     }
 }
 
+/// Writes a string to the serial port.
+///
+/// Each byte of the string is sent individually.
 pub fn serial_write_str(s: &str) {
     for byte in s.bytes() {
         serial_write_byte(byte);
     }
 }
 
-pub fn info(text: &str) {
-    serial_write_str("[INFO] ");
-    serial_write_str(text);
-    serial_write_str("\n");
-}
-
-pub fn info_hex(value: u64) {
-    serial_write_str("[INFO] 0x");
-    // Print value as hexadecimal without using format!
+/// Writes a hexadecimal representation of a `u64` value to the serial port.
+///
+/// Does not include a `0x` prefix.
+pub fn serial_write_hex(mut value: u64) {
     let mut buf = [0u8; 16];
     let mut i = buf.len();
-    let mut v = value;
-    if v == 0 {
+    if value == 0 {
         serial_write_str("0");
-    } else {
-        while v != 0 {
-            i -= 1;
-            let digit = (v & 0xF) as u8;
-            buf[i] = match digit {
-                0..=9 => b'0' + digit,
-                10..=15 => b'A' + (digit - 10),
-                _ => b'?', // Should not happen
-            };
-            v >>= 4;
-        }
-        serial_write_str(core::str::from_utf8(&buf[i..]).unwrap());
+        return;
     }
-    serial_write_str("\n");
+    while value != 0 {
+        i -= 1;
+        let digit = (value & 0xF) as u8;
+        buf[i] = match digit {
+            0..=9 => b'0' + digit,
+            10..=15 => b'A' + (digit - 10),
+            _ => b'?', // Should not happen
+        };
+        value >>= 4;
+    }
+    serial_write_str(core::str::from_utf8(&buf[i..]).unwrap());
 }
 
-pub fn error(text: &str) {
-    serial_write_str("[ERROR] ");
-    serial_write_str(text);
-    serial_write_str("\n");
+/// Logs an info-level message to the serial port.
+///
+/// # Examples
+/// ```
+/// serial::info("System started");
+/// ```
+pub fn info(text: &str) {
+    serial_log!("[INFO] ", "{}", text);
+}
+
+/// Logs an info-level hexadecimal value to the serial port.
+///
+/// # Examples
+/// ```
+/// serial::info_hex(0xdeadbeef);
+/// ```
+pub(crate) fn info_hex(value: u64) {
+    serial_log_hex!("[INFO] ", value);
+}
+
+/// Logs an error-level message to the serial port.
+///
+/// # Examples
+/// ```
+/// serial::error("An error occurred");
+/// ```
+pub(crate) fn error(text: &str) {
+    serial_log!("[ERROR] ", "{}", text);
 }

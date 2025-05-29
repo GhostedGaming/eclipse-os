@@ -8,19 +8,18 @@ extern crate alloc;
 use alloc::format;
 
 use alloc::string::ToString;
-use eclipse_os::serial::serial_write_str;
+use eclipse_os::serial::{info, serial_write_str};
 use spin::Mutex;
-use uefi::boot::MemoryType;
+use uefi::boot::{MemoryType, get_handle_for_protocol, open_protocol_exclusive};
 use uefi::mem::memory_map::MemoryMapOwned;
+use uefi::proto::console::text::Output;
 
 use core::panic::PanicInfo;
 
-use eclipse_os::cpu::cpuid;
-use eclipse_os::task::{Task, executor::Executor, keyboard};
-use eclipse_os::vga_buffer::{self, Color, CursorStyle};
+use eclipse_os::vga_buffer::{self, Color};
+use eclipse_os::{print, println, serial_log};
 use eclipse_os::{serial, time};
-use eclipse_os::{print, println};
-use uefi::prelude::*;
+use uefi::{CStr16, prelude::*};
 
 mod bump_allocator;
 use bump_allocator::BumpAllocator;
@@ -32,33 +31,43 @@ static GLOBAL: BumpAllocator<HEAP_SIZE> = BumpAllocator::new();
 
 #[entry]
 fn efi_main() -> Status {
-    serial::info("efi_main: Entered UEFI entry point\n");
+    info("efi_main: Entered UEFI entry point\n");
     if let Err(e) = uefi::helpers::init() {
-        serial::info("efi_main: UEFI helpers init failed\n");
+        info("efi_main: UEFI helpers init failed\n");
         return e.status();
     }
-    serial::info("efi_main: UEFI helpers initialized\n");
+    info("efi_main: UEFI helpers initialized\n");
     // Get the memory map from UEFI
     let memory_map = match uefi::boot::memory_map(MemoryType::LOADER_DATA) {
         Ok(map) => {
-            serial::info("efi_main: Got UEFI memory map\n");
+            info("efi_main: Got UEFI memory map\n");
             map
         }
         Err(e) => {
-            serial::info("efi_main: Failed to get UEFI memory map\n");
+            info("efi_main: Failed to get UEFI memory map\n");
             return e.status();
         }
     };
 
     // Construct BootInfo on the stack (no heap allocation)
-    serial::info("efi_main: Constructing BootInfo\n");
+    info("efi_main: Constructing BootInfo\n");
     let mut boot_info = BootInfo {
         memory_map: Mutex::new(memory_map),
         _non_exhaustive: 0,
     };
 
-    serial::info("efi_main: Using bump allocator for heap initialization\n");
-    serial::info("efi_main: Calling kernel_main\n");
+    // Use the simple text output protocol
+    let handle = get_handle_for_protocol::<Output>().unwrap();
+    let mut output = open_protocol_exclusive::<Output>(handle).unwrap();
+    output.clear();
+    // Convert &str to CStr16 for UEFI output_string
+    // Create a buffer for the UTF-16 string (length + 1 for null terminator)
+    let mut buf = [0u16; 32];
+    let cstr16 = CStr16::from_str_with_buf("Eclipse OS Booting...\n", &mut buf).unwrap();
+    output.output_string(cstr16).unwrap();
+
+    info("efi_main: Using bump allocator for heap initialization\n");
+    info("efi_main: Calling kernel_main\n");
     kernel_main(&mut boot_info)
 }
 
@@ -76,53 +85,54 @@ pub struct BootInfo {
 }
 
 fn kernel_main(boot_info: &mut BootInfo) -> ! {
-    serial::info("kernel_main: Entered kernel_main\n");
-    serial::info("kernel_main: Using bump allocator for heap allocations\n");
-    // Create a mapper
-    // Create a frame allocator from the memory map
-    serial::info("kernel_main: Initializing memory mapper\n");
-    serial::info("kernel_main: Locking memory_map mutex\n");
-    serial::info("kernel_main: Initializing frame allocator\n");
+    info("kernel_main: Entered kernel_main\n");
+    info("kernel_main: Using bump allocator for heap allocations\n");
 
-    serial::info("kernel_main: Calling eclipse_os::init()\n");
+    info("kernel_main: Calling eclipse_os::init()\n");
     eclipse_os::init();
 
-    serial::info("kernel_main: Setting VGA cursor style\n");
-    vga_buffer::set_cursor_style(CursorStyle::Underline);
-    vga_buffer::set_color(Color::White, Color::Black);
-    vga_buffer::set_cursor_visibility(true);
+    // info("kernel_main: Setting VGA cursor style\n");
+    // vga_buffer::set_cursor_style(CursorStyle::Underline);
+    // vga_buffer::set_color(Color::White, Color::Black);
+    // vga_buffer::set_cursor_visibility(true);
 
-    serial::info("kernel_main: Initializing CPU info\n");
-    cpuid::init_cpu_info();
-    cpuid::print_cpu_info();
+    // info("kernel_main: Initializing CPU info\n");
+    // cpuid::init_cpu_info();
+    // cpuid::print_cpu_info();
 
-    print_status("Heap Initialization", Ok(()));
-    print_status("Panic Handler Setup", Ok(()));
-    print_status("Trivial Assertion", trivial_assertion());
-    print_status("Time Initialization", initiate_time());
-    // print_status("PC Speaker Initialization", init_pc_speaker_status());
-    print_status("Test Coms", test_port_print());
+    // print_status("Heap Initialization", Ok(()));
+    // print_status("Panic Handler Setup", Ok(()));
+    // print_status("Trivial Assertion", trivial_assertion());
+    // print_status("Time Initialization", initiate_time());
+    // // print_status("PC Speaker Initialization", init_pc_speaker_status());
+    // print_status("Test Coms", test_port_print());
 
-    serial::info("kernel_main: Playing startup sound\n");
-    play_startup_sound();
+    // info("kernel_main: Playing startup sound\n");
+    // play_startup_sound();
 
-    #[cfg(test)]
-    test_main();
+    // #[cfg(test)]
+    // test_main();
 
-    serial::info("kernel_main: Initializing executor\n");
-    // Initialize and run the executor
-    let mut executor = Executor::new();
-    serial::info("kernel_main: Spawning example_task\n");
-    executor.spawn(Task::new(example_task()));
-    serial::info("kernel_main: Spawning keyboard::print_keypresses\n");
-    executor.spawn(Task::new(keyboard::print_keypresses()));
-    serial::info("kernel_main: Running executor\n");
-    executor.run();
+    // info("kernel_main: Initializing executor\n");
+    // // Initialize and run the executor
+    // let mut executor = Executor::new();
+    // info("kernel_main: Spawning example_task\n");
+    // executor.spawn(Task::new(example_task()));
+    // info("kernel_main: Spawning keyboard::print_keypresses\n");
+    // executor.spawn(Task::new(keyboard::print_keypresses()));
+    // info("kernel_main: Running executor\n");
+    // executor.run();
+
+    // Never exit
+    info("kernel_main: Entering infinite loop\n");
+    loop {
+        core::hint::spin_loop();
+    }
 }
 
 fn test_port_print() -> Result<(), ()> {
-    serial::info("test_port_print: Sending test string to serial\n");
-    serial::info("Hello");
+    info("test_port_print: Sending test string to serial\n");
+    info("Hello");
     Ok(())
 }
 
@@ -140,17 +150,17 @@ fn play_startup_sound() {
 
 /// Helper function to print status messages with consistent formatting
 fn print_status(component: &str, result: Result<(), ()>) {
-    serial::info(&format!("print_status: {} ...\n", component));
+    info(&format!("print_status: {} ...\n", component));
     print!("{} [", component);
 
     match result {
         Ok(_) => {
-            serial::info("print_status: OK\n");
+            info("print_status: OK\n");
             vga_buffer::set_color(Color::Green, Color::Black);
             print!("OK");
         }
         Err(_) => {
-            serial::info("print_status: FAIL\n");
+            info("print_status: FAIL\n");
             vga_buffer::set_color(Color::Red, Color::Black);
             print!("FAIL");
         }
@@ -174,34 +184,34 @@ fn initiate_time() -> Result<(), ()> {
 
 #[cfg(not(test))]
 #[panic_handler]
-fn panic(info: &PanicInfo) -> ! {
-    serial::info("panic: Kernel panic occurred!\n");
+fn panic(panic_info: &PanicInfo) -> ! {
+    info("panic: Kernel panic occurred!\n");
     print!("KERNEL PANIC: ");
-    print!("{}", info.message());
-    if let Some(location) = info.location() {
+    print!("{}", panic_info.message());
+    if let Some(location) = panic_info.location() {
         print!(" at {}:{}", location.file(), location.line());
-        serial::info(&format!(
+        info(&format!(
             "panic: at {}:{}\n",
             location.file(),
             location.line()
         ));
     }
     print!("\n");
-    print_panic_info_serial(info);
+    print_panic_info_serial(panic_info);
     loop {}
 }
 
-pub fn print_panic_info_serial(info: &core::panic::PanicInfo) {
+pub fn print_panic_info_serial(panic_info: &core::panic::PanicInfo) {
     use alloc::string::String;
     use core::fmt::Write;
 
-    serial::info("print_panic_info_serial: Printing panic info to serial\n");
+    info("print_panic_info_serial: Printing panic info to serial\n");
 
     // Print a clear panic header
     serial_write_str("\n=== KERNEL PANIC ===\n");
 
     // Print location if available
-    if let Some(location) = info.location() {
+    if let Some(location) = panic_info.location() {
         serial_write_str("Location: ");
         serial_write_str(location.file());
         serial_write_str(":");
@@ -216,7 +226,7 @@ pub fn print_panic_info_serial(info: &core::panic::PanicInfo) {
     // Print panic message (payload)
     serial_write_str("Message: ");
     let mut msg_buf = String::new();
-    let args = info.message();
+    let args = panic_info.message();
     let _ = write!(&mut msg_buf, "{args}");
     serial_write_str(&msg_buf);
     serial_write_str("\n");
@@ -231,14 +241,14 @@ fn panic(info: &PanicInfo) -> ! {
 }
 
 async fn async_number() -> u32 {
-    serial::info("async_number: returning 42\n");
+    info("async_number: returning 42\n");
     42
 }
 
 async fn example_task() {
-    serial::info("example_task: started\n");
+    info("example_task: started\n");
     let number = async_number().await;
-    serial::info(&format!("example_task: async_number returned {}\n", number));
+    info(&format!("example_task: async_number returned {}\n", number));
     let success = number == 42;
     print_status(
         &format!("Async Number [{}]", number),
@@ -249,7 +259,7 @@ async fn example_task() {
 }
 
 fn print_ascii() {
-    serial::info("print_ascii: Printing ASCII art and initializing shell\n");
+    info("print_ascii: Printing ASCII art and initializing shell\n");
     vga_buffer::set_color(Color::Purple, Color::Black);
     println!("");
     println!("      --ECLIPSE OS--     ");

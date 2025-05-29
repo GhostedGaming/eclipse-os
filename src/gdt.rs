@@ -12,9 +12,9 @@ lazy_static! {
             const STACK_SIZE: usize = 4096 * 5;
             static mut STACK: [u8; STACK_SIZE] = [0; STACK_SIZE];
 
-            let stack_start = VirtAddr::from_ptr(&raw const STACK);
-            let stack_end = stack_start + STACK_SIZE;
-            stack_end
+            let stack_start = VirtAddr::from_ptr(core::ptr::addr_of!(STACK));
+
+            stack_start + STACK_SIZE
         };
         tss
     };

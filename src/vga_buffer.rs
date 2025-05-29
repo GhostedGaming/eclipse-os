@@ -1,5 +1,3 @@
-use crate::pc_speaker;
-use crate::text_editor::express_editor::EDITOR_DATA;
 use core::fmt;
 use lazy_static::lazy_static;
 use spin::Mutex;
