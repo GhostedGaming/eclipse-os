@@ -10,16 +10,24 @@ use alloc::format;
 use alloc::string::ToString;
 use eclipse_os::serial::{info, serial_write_str};
 use spin::Mutex;
-use uefi::boot::{MemoryType, get_handle_for_protocol, open_protocol_exclusive};
+use uefi::boot::{
+    MemoryType, OpenProtocolParams, get_handle_for_protocol, open_protocol_exclusive,
+};
 use uefi::mem::memory_map::MemoryMapOwned;
 use uefi::proto::console::text::Output;
 
-use core::panic::PanicInfo;
-
+use eclipse_os::uefi_text_buffer;
 use eclipse_os::vga_buffer::{self, Color};
 use eclipse_os::{print, println, serial_log};
 use eclipse_os::{serial, time};
+use eclipse_os::BootInfo;
+use eclipse_os::uefi_text_buffer::print_message;
 use uefi::{CStr16, prelude::*};
+use uefi::boot::ScopedProtocol;
+
+use core::panic::PanicInfo;
+
+use once_cell::unsync::OnceCell;
 
 mod bump_allocator;
 use bump_allocator::BumpAllocator;
@@ -29,15 +37,23 @@ const HEAP_SIZE: usize = 4096;
 #[global_allocator]
 static GLOBAL: BumpAllocator<HEAP_SIZE> = BumpAllocator::new();
 
+#[derive(Clone, Copy)]
+pub struct Protocol {
+    protocol: OpenProtocolParams,
+}
+
 #[entry]
 fn efi_main() -> Status {
     info("efi_main: Entered UEFI entry point\n");
+
+    // Initialize UEFI helpers
     if let Err(e) = uefi::helpers::init() {
         info("efi_main: UEFI helpers init failed\n");
         return e.status();
     }
     info("efi_main: UEFI helpers initialized\n");
-    // Get the memory map from UEFI
+
+    // Get the UEFI memory map
     let memory_map = match uefi::boot::memory_map(MemoryType::LOADER_DATA) {
         Ok(map) => {
             info("efi_main: Got UEFI memory map\n");
@@ -52,37 +68,26 @@ fn efi_main() -> Status {
     // Construct BootInfo on the stack (no heap allocation)
     info("efi_main: Constructing BootInfo\n");
     let mut boot_info = BootInfo {
+        text_output: OnceCell::new(),
         memory_map: Mutex::new(memory_map),
         _non_exhaustive: 0,
     };
 
-    // Use the simple text output protocol
+    // Initialize the text output protocol and store it
     let handle = get_handle_for_protocol::<Output>().unwrap();
-    let mut output = open_protocol_exclusive::<Output>(handle).unwrap();
-    output.clear();
-    // Convert &str to CStr16 for UEFI output_string
-    // Create a buffer for the UTF-16 string (length + 1 for null terminator)
-    let mut buf = [0u16; 32];
-    let cstr16 = CStr16::from_str_with_buf("Eclipse OS Booting...\n", &mut buf).unwrap();
-    output.output_string(cstr16).unwrap();
+    let output = open_protocol_exclusive::<Output>(handle).unwrap();
+    boot_info.text_output.set(Mutex::new(output)).unwrap();
+
+    // **Use print_message to display boot text**
+    print_message(&boot_info, "Eclipse OS Booting...\n");
 
     info("efi_main: Using bump allocator for heap initialization\n");
     info("efi_main: Calling kernel_main\n");
+
+    // Pass BootInfo to kernel_main
     kernel_main(&mut boot_info)
 }
 
-#[derive(Debug)]
-#[repr(C)]
-pub struct BootInfo {
-    /// A map of the physical memory regions of the underlying machine.
-    ///
-    /// The bootloader queries this information from the BIOS/UEFI firmware and translates this
-    /// information to Rust types. It also marks any memory regions that the bootloader uses in
-    /// the memory map before passing it to the kernel. Regions marked as usable can be freely
-    /// used by the kernel.
-    pub memory_map: Mutex<MemoryMapOwned>,
-    _non_exhaustive: u8, // `()` is not FFI safe
-}
 
 fn kernel_main(boot_info: &mut BootInfo) -> ! {
     info("kernel_main: Entered kernel_main\n");
@@ -124,6 +129,7 @@ fn kernel_main(boot_info: &mut BootInfo) -> ! {
     // executor.run();
 
     // Never exit
+
     info("kernel_main: Entering infinite loop\n");
     loop {
         core::hint::spin_loop();

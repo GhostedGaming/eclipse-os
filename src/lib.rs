@@ -7,10 +7,14 @@
 
 extern crate alloc;
 use core::panic::PanicInfo;
-
 use interrupts::enable_apic;
+use once_cell::unsync::OnceCell;
 use serial::info;
+use spin::{Mutex, Once};
 use x86_64::instructions::interrupts::enable;
+use uefi::mem::memory_map::MemoryMapOwned;
+use uefi::boot::ScopedProtocol;
+use uefi::proto::console::text::Output;
 
 pub mod cpu;
 pub mod crude_storage;
@@ -28,6 +32,18 @@ pub mod task;
 pub mod text_editor;
 pub mod time;
 pub mod vga_buffer;
+pub mod uefi_text_buffer;
+
+#[derive(Debug)]
+#[repr(C)]
+pub struct BootInfo {
+    /// A map of the physical memory regions of the underlying machine.
+    pub memory_map: Mutex<MemoryMapOwned>,
+    /// UEFI text output protocol (wrapped in a Mutex for safe access)
+    pub text_output: OnceCell<Mutex<ScopedProtocol<Output>>>,
+    /// Prevent external construction and ensure FFI compatibility
+    pub _non_exhaustive: u8,
+}
 
 pub fn init() {
     info("init: enabling interrupts\n");
@@ -38,6 +54,7 @@ pub fn init() {
     interrupts::init_idt();
     info("init: done\n");
 }
+
 pub trait Testable {
     fn run(&self) -> ();
 }
@@ -98,20 +115,6 @@ pub fn hlt_loop() -> ! {
         x86_64::instructions::hlt();
     }
 }
-
-// #[cfg(test)]
-// use bootloader::{BootInfo, entry_point};
-
-// #[cfg(test)]
-// entry_point!(test_kernel_main);
-
-/// Entry point for `cargo xtest`
-// #[cfg(test)]
-// fn test_kernel_main(_boot_info: &'static BootInfo) -> ! {
-//     init();
-//     test_main();
-//     hlt_loop();
-// }
 
 #[cfg(test)]
 #[panic_handler]
