@@ -1,7 +1,8 @@
+use crate::serial::info;
 use crate::shell::Shell;
 use crate::text_editor::express_editor::{self};
-use crate::vga_buffer::WRITER;
-use crate::{print, println, vga_buffer};
+use crate::uefi_text_buffer::{print_message, print_char, backspace};
+use alloc::string::ToString;
 use alloc::sync::Arc;
 use conquer_once::spin::OnceCell;
 use core::{
@@ -35,12 +36,12 @@ pub fn init_shell() {
 pub(crate) fn add_scancode(scancode: u8) {
     if let Ok(queue) = SCANCODE_QUEUE.try_get() {
         if let Err(_) = queue.push(scancode) {
-            println!("WARNING: scancode queue full; dropping keyboard input");
+            print_message("WARNING: scancode queue full; dropping keyboard input");
         } else {
             WAKER.wake();
         }
     } else {
-        println!("WARNING: scancode queue uninitialized");
+        print_message("WARNING: scancode queue uninitialized");
     }
 }
 
@@ -129,7 +130,6 @@ pub async fn print_keypresses() {
                 // Handle arrow keys and special keys (regardless of editor state)
                 match key_event.code {
                     KeyCode::ArrowLeft => {
-                        // Safety check - only process in editor mode
                         let editor_data_active = express_editor::EDITOR_DATA.lock().active;
                         if editor_data_active {
                             express_editor::move_cursor_left();
@@ -137,7 +137,6 @@ pub async fn print_keypresses() {
                         continue;
                     }
                     KeyCode::ArrowRight => {
-                        // Safety check - only process in editor mode
                         let editor_data_active = express_editor::EDITOR_DATA.lock().active;
                         if editor_data_active {
                             express_editor::move_cursor_right();
@@ -148,9 +147,6 @@ pub async fn print_keypresses() {
                         let editor_active = express_editor::EDITOR_DATA.lock().active;
                         if editor_active {
                             express_editor::move_cursor_up();
-                        } else {
-                            // In shell mode, move VGA cursor up
-                            vga_buffer::move_cursor_up(1);
                         }
                         continue;
                     }
@@ -158,9 +154,6 @@ pub async fn print_keypresses() {
                         let editor_active = express_editor::EDITOR_DATA.lock().active;
                         if editor_active {
                             express_editor::move_cursor_down();
-                        } else {
-                            // In shell mode, move VGA cursor down
-                            vga_buffer::move_cursor_down(1);
                         }
                         continue;
                     }
@@ -168,8 +161,6 @@ pub async fn print_keypresses() {
                         let editor_active = express_editor::EDITOR_DATA.lock().active;
                         if editor_active {
                             express_editor::move_to_line_start();
-                        } else {
-                            vga_buffer::move_cursor_to_start_of_line();
                         }
                         continue;
                     }
@@ -177,40 +168,30 @@ pub async fn print_keypresses() {
                         let editor_active = express_editor::EDITOR_DATA.lock().active;
                         if editor_active {
                             express_editor::move_to_line_end();
-                        } else {
-                            vga_buffer::move_cursor_to_end_of_line();
                         }
                         continue;
                     }
                     KeyCode::PageUp => {
                         let editor_active = express_editor::EDITOR_DATA.lock().active;
                         if editor_active {
-                            // Move up multiple lines in editor
                             for _ in 0..10 {
                                 express_editor::move_cursor_up();
                             }
-                        } else {
-                            vga_buffer::move_cursor_up(10);
                         }
                         continue;
                     }
                     KeyCode::PageDown => {
                         let editor_active = express_editor::EDITOR_DATA.lock().active;
                         if editor_active {
-                            // Move down multiple lines in editor
                             for _ in 0..10 {
                                 express_editor::move_cursor_down();
                             }
-                        } else {
-                            vga_buffer::move_cursor_down(10);
                         }
                         continue;
                     }
                     _ => {}
                 }
             }
-
-            let writer_pos = vga_buffer::WRITER.lock().row_position();
 
             // Process the key event to get a decoded key
             if let Some(key) = keyboard.process_keyevent(key_event) {
@@ -237,13 +218,12 @@ pub async fn print_keypresses() {
                         match character {
                             // Handle backspace (0x08) or delete (0x7F)
                             '\u{0008}' | '\u{007F}' => {
-                                if writer_pos > 1 {
-                                    SHELL.lock().process_keypress('\u{8}');
-                                }
+                                backspace();
+                                SHELL.lock().process_keypress('\u{8}');
                             }
                             // Handle tab (0x09)
                             '\u{0009}' => {
-                                print!("    ");
+                                print_message("    ");
                             }
                             // Handle escape (0x1B)
                             '\u{001B}' => {
@@ -251,13 +231,9 @@ pub async fn print_keypresses() {
                             }
                             // Handle all other printable characters
                             _ => {
-                                let column_pos = WRITER.lock().column_position;
-
-                                if column_pos > 78 {
-                                    println!("\n");
-                                } else {
-                                    SHELL.lock().process_keypress(character);
-                                }
+                                print_char(character);
+                                SHELL.lock().process_keypress(character);
+                                info(character.to_string().as_str());
                             }
                         }
                     }
@@ -266,13 +242,12 @@ pub async fn print_keypresses() {
                     DecodedKey::RawKey(key) => {
                         match key {
                             KeyCode::Backspace => {
-                                if writer_pos > 1 {
-                                    let editor_active = express_editor::EDITOR_DATA.lock().active;
-                                    if editor_active {
-                                        express_editor::process_editor_key('\u{8}');
-                                    } else {
-                                        SHELL.lock().process_keypress('\u{8}');
-                                    }
+                                let editor_active = express_editor::EDITOR_DATA.lock().active;
+                                if editor_active {
+                                    express_editor::process_editor_key('\u{8}');
+                                } else {
+                                    backspace();
+                                    SHELL.lock().process_keypress('\u{8}');
                                 }
                             }
                             // Handle delete key
@@ -281,6 +256,7 @@ pub async fn print_keypresses() {
                                 if editor_active {
                                     express_editor::process_editor_key('\u{8}');
                                 } else {
+                                    backspace();
                                     SHELL.lock().process_keypress('\u{8}');
                                 }
                             }
@@ -293,7 +269,7 @@ pub async fn print_keypresses() {
                                         express_editor::process_editor_key(' ');
                                     }
                                 } else {
-                                    print!("    ");
+                                    print_message("    ");
                                 }
                             }
                             // Handle Enter/Return key
@@ -302,6 +278,7 @@ pub async fn print_keypresses() {
                                 if editor_active {
                                     express_editor::process_editor_key('\n');
                                 } else {
+                                    print_char('\n');
                                     SHELL.lock().process_keypress('\n');
                                 }
                             }
@@ -313,6 +290,7 @@ pub async fn print_keypresses() {
                                 if editor_active {
                                     express_editor::process_editor_key(char_to_insert);
                                 } else {
+                                    print_char(char_to_insert);
                                     SHELL.lock().process_keypress(char_to_insert);
                                 }
                             }

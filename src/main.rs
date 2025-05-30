@@ -8,7 +8,10 @@ extern crate alloc;
 use alloc::format;
 
 use alloc::string::ToString;
+use eclipse_os::pc_speaker::init_pc_speaker;
 use eclipse_os::serial::{info, serial_write_str};
+use eclipse_os::task::executor::Executor;
+use eclipse_os::task::{keyboard, Task};
 use spin::Mutex;
 use uefi::boot::{
     MemoryType, get_handle_for_protocol, open_protocol_exclusive,
@@ -124,21 +127,26 @@ fn kernel_main(boot_info: &mut BootInfo) -> ! {
     // #[cfg(test)]
     // test_main();
 
-    // info("kernel_main: Initializing executor\n");
-    // // Initialize and run the executor
-    // let mut executor = Executor::new();
-    // info("kernel_main: Spawning example_task\n");
-    // executor.spawn(Task::new(example_task()));
-    // info("kernel_main: Spawning keyboard::print_keypresses\n");
-    // executor.spawn(Task::new(keyboard::print_keypresses()));
-    // info("kernel_main: Running executor\n");
-    // executor.run();
-
     // Never exit
 
     print_message("Hello from eclipse OS!");
 
-    info("kernel_main: Entering infinite loop\n");
+    info("Initilizing pc speaker\n");
+
+    init_pc_speaker_status().expect("Couldnt init speaker!");
+
+    play_startup_sound();
+
+    //info("kernel_main: Initializing executor\n");
+    //// Initialize and run the executor
+    //let mut executor = Executor::new();
+    //info("kernel_main: Spawning example_task\n");
+    //executor.spawn(Task::new(example_task()));
+    //info("kernel_main: Spawning keyboard::print_keypresses\n");
+    //executor.spawn(Task::new(keyboard::print_keypresses()));
+    //info("kernel_main: Running executor\n");
+    //executor.run();
+
     loop {
         core::hint::spin_loop();
     }
@@ -152,14 +160,14 @@ fn test_port_print() -> Result<(), ()> {
 
 /// Initialize PC Speaker and return status
 fn init_pc_speaker_status() -> Result<(), ()> {
-    // init_pc_speaker();
+    init_pc_speaker();
     Ok(())
 }
 
 /// Play the startup sound
 fn play_startup_sound() {
     // Play the startup melody
-    // play_melody(Melody::PowerOn);
+    eclipse_os::pc_speaker::play_melody(eclipse_os::pc_speaker::Melody::PowerOn);
 }
 
 /// Helper function to print status messages with consistent formatting

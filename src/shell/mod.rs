@@ -1,14 +1,12 @@
 use crate::pc_speaker::{Melody, play_melody};
-use crate::{print, println, vga_buffer};
+use crate::uefi_text_buffer::{print_char, print_message, backspace, get_cursor_position, set_cursor_position, clear_output};
+use alloc::format;
 use alloc::string::String;
 
 pub struct Shell {
     input_buffer: String,
     cursor_position: usize,
     prompt: &'static str,
-    prompt_row: usize,
-    prompt_col: usize,
-    input_start_row: usize,
     input_start_col: usize,
 }
 
@@ -18,9 +16,6 @@ impl Shell {
             input_buffer: String::new(),
             cursor_position: 0,
             prompt: "eclipse-os> ",
-            prompt_row: 0,
-            prompt_col: 0,
-            input_start_row: 0,
             input_start_col: 0,
         }
     }
@@ -30,21 +25,18 @@ impl Shell {
     }
 
     fn show_prompt(&mut self) {
-        // Get current cursor position before showing prompt
-        let (row, col) = vga_buffer::get_cursor_position();
-        print!("{}", self.prompt);
-
-        // Update our tracking of where the prompt and input area are
-        self.prompt_row = row;
-        self.prompt_col = col;
-        self.input_start_row = row;
-        self.input_start_col = col + self.prompt.len();
+        // Print prompt
+        for ch in self.prompt.chars() {
+            print_char(ch);
+        }
+        // Track where input starts (after the prompt)
+        self.input_start_col = self.prompt.len();
     }
 
     pub fn process_keypress(&mut self, key: char) {
         match key {
             '\n' => {
-                println!(); // Move to next line
+                print_char('\n'); // Move to next line
                 self.execute_command();
                 self.input_buffer.clear();
                 self.cursor_position = 0;
@@ -69,7 +61,7 @@ impl Shell {
 
             // For simple insertion at the end, just print the character
             if self.cursor_position == self.input_buffer.len() {
-                print!("{}", c);
+                print_char(c);
             } else {
                 // Need to redraw if inserting in the middle
                 self.redraw_input_line();
@@ -78,42 +70,19 @@ impl Shell {
             // Fallback: just append and print
             self.input_buffer.push(c);
             self.cursor_position = self.input_buffer.len();
-            print!("{}", c);
+            print_char(c);
         }
     }
 
     fn handle_backspace(&mut self) {
         // Only allow backspace if we have input to remove
         if self.cursor_position > 0 && !self.input_buffer.is_empty() {
-            // Check if we're at the protected boundary
-            let (current_row, current_col) = vga_buffer::get_cursor_position();
-
-            // Don't allow backspace if it would go into the prompt area
-            if current_row < self.input_start_row
-                || (current_row == self.input_start_row && current_col <= self.input_start_col)
-            {
-                // Play beep sound to indicate we can't backspace further
-                crate::pc_speaker::beep(500, 10);
-                return;
-            }
-
             // Remove character before cursor
             self.cursor_position -= 1;
             self.input_buffer.remove(self.cursor_position);
 
-            // For simple backspace at the end, just use VGA backspace
-            if self.cursor_position == self.input_buffer.len() {
-                // Only backspace if we're in the input area
-                let (row, col) = vga_buffer::get_cursor_position();
-                if row > self.input_start_row
-                    || (row == self.input_start_row && col > self.input_start_col)
-                {
-                    vga_buffer::backspace();
-                }
-            } else {
-                // Need to redraw if removing from the middle
-                self.redraw_input_line();
-            }
+            // Use the UEFI backspace function
+            backspace();
         } else {
             // At beginning of input, just make a beep sound
             crate::pc_speaker::beep(500, 10);
@@ -121,62 +90,50 @@ impl Shell {
     }
 
     fn redraw_input_line(&mut self) {
-        // Save current cursor position
-        let (current_row, current_col) = vga_buffer::get_cursor_position();
-
-        // Move to start of input area (NOT the prompt)
-        vga_buffer::set_cursor_position(self.input_start_row, self.input_start_col);
-
-        // Clear only the input area by printing spaces
-        let max_input_length = vga_buffer::BUFFER_WIDTH - self.input_start_col;
-        for _ in 0..max_input_length {
-            print!(" ");
+        // This is simplified since UEFI text mode is more limited
+        // We'll just reprint the entire line for now
+        
+        // Clear current line by printing spaces (simplified approach)
+        for _ in 0..80 {
+            print_char(' ');
         }
-
-        // Move back to start of input area
-        vga_buffer::set_cursor_position(self.input_start_row, self.input_start_col);
-
+        
+        // Print prompt again
+        for ch in self.prompt.chars() {
+            print_char(ch);
+        }
+        
         // Print the current input buffer
-        print!("{}", self.input_buffer);
-
-        // Position cursor correctly within the input
-        let target_col = self.input_start_col + self.cursor_position;
-        if target_col < vga_buffer::BUFFER_WIDTH {
-            vga_buffer::set_cursor_position(self.input_start_row, target_col);
+        for ch in self.input_buffer.chars() {
+            print_char(ch);
         }
     }
 
-    // Add methods to handle cursor movement within the input
+    // Simplified cursor movement for UEFI mode
     pub fn move_cursor_left(&mut self) {
         if self.cursor_position > 0 {
-            let (current_row, current_col) = vga_buffer::get_cursor_position();
-
-            // Don't move left if it would go into the prompt
-            if current_row == self.input_start_row && current_col <= self.input_start_col {
-                return;
-            }
-
             self.cursor_position -= 1;
-            vga_buffer::move_cursor_left(1);
+            // UEFI text mode cursor movement is limited
+            // For now, we'll just redraw the line
+            self.redraw_input_line();
         }
     }
 
     pub fn move_cursor_right(&mut self) {
         if self.cursor_position < self.input_buffer.len() {
             self.cursor_position += 1;
-            vga_buffer::move_cursor_right(1);
+            self.redraw_input_line();
         }
     }
 
     pub fn move_cursor_to_start(&mut self) {
         self.cursor_position = 0;
-        vga_buffer::set_cursor_position(self.input_start_row, self.input_start_col);
+        self.redraw_input_line();
     }
 
     pub fn move_cursor_to_end(&mut self) {
         self.cursor_position = self.input_buffer.len();
-        let target_col = self.input_start_col + self.cursor_position;
-        vga_buffer::set_cursor_position(self.input_start_row, target_col);
+        self.redraw_input_line();
     }
 
     // Handle delete key (delete character at cursor, not before)
@@ -211,93 +168,91 @@ impl Shell {
             "read" => commands::read(),
             "run" => commands::run(),
             "eclipse" => {
-                println!("Eclipse OS - A modern operating system");
-                println!("Version: 0.1.1");
-                println!("Built with Rust");
+                print_message("Eclipse OS - A modern operating system");
+                print_message("Version: 0.1.1");
+                print_message("Built with Rust");
             }
             _ => {
                 play_melody(Melody::Error);
-                println!("Unknown command: '{}'", command);
-                println!("Type 'help' for available commands.");
+                print_message(&format!("Unknown command: '{}'", command));
+                print_message("Type 'help' for available commands.");
             }
         }
     }
 }
 
-// Commands module remains the same
+// Commands module updated for UEFI text buffer
 pub mod commands {
+    use alloc::format;
     use alloc::string::{String, ToString};
 
     use crate::text_editor::express_editor;
-    use crate::{crude_storage, println, rtc, vga_buffer};
+    use crate::uefi_text_buffer::{print_message, clear_output};
+    use crate::{crude_storage, rtc};
 
     pub fn help() {
-        println!("Available commands:");
-        println!("  help     - Show this help message");
-        println!("  echo     - Echo text back");
-        println!("  clear    - Clear the screen");
-        println!("  about    - About Eclipse OS");
-        println!("  version  - Show version information");
-        println!("  hello    - Say hello");
-        println!("  eclipse  - Show Eclipse OS info");
-        println!("  express  - Launch Express Editor");
-        println!("  shutdown - Shutdown the system");
+        print_message("Available commands:");
+        print_message("  help     - Show this help message");
+        print_message("  echo     - Echo text back");
+        print_message("  clear    - Clear the screen");
+        print_message("  about    - About Eclipse OS");
+        print_message("  version  - Show version information");
+        print_message("  hello    - Say hello");
+        print_message("  eclipse  - Show Eclipse OS info");
+        print_message("  express  - Launch Express Editor");
+        print_message("  shutdown - Shutdown the system");
     }
 
     pub fn echo(args: core::str::SplitWhitespace) {
         let text: alloc::vec::Vec<&str> = args.collect();
-        println!("{}", text.join(" "));
+        print_message(&text.join(" "));
     }
 
     pub fn clear() {
-        vga_buffer::clear_screen();
+        clear_output();
     }
 
     pub fn about() {
-        println!("Eclipse OS - A hobby operating system written in Rust");
-        println!("Features:");
-        println!("  - VGA text mode");
-        println!("  - Keyboard input");
-        println!("  - Basic shell");
-        println!("  - Memory management");
-        println!("  - Express Editor");
+        print_message("Eclipse OS - A hobby operating system written in Rust");
+        print_message("Features:");
+        print_message("  - UEFI text mode");
+        print_message("  - Keyboard input");
+        print_message("  - Basic shell");
+        print_message("  - Memory management");
+        print_message("  - Express Editor");
     }
 
     pub fn version() {
-        println!("Eclipse OS version 0.1.0");
-        println!("Rust version: 1.0.0");
+        print_message("Eclipse OS version 0.1.0");
+        print_message("Rust version: 1.0.0");
     }
 
     pub fn hello() {
-        println!("Hello from Eclipse OS!");
+        print_message("Hello from Eclipse OS!");
     }
 
     pub fn express() {
-        println!("Launching Express Editor...");
+        print_message("Launching Express Editor...");
         express_editor::init_editor();
     }
 
     pub fn shutdown() {
-        println!("Shutting down Eclipse OS...");
+        print_message("Shutting down Eclipse OS...");
         crate::hlt_loop();
     }
 
     pub fn time_test() {
         use crate::time;
 
-        println!("Current time: {}", rtc::get_current_time());
-        println!("Current ticks: {}", time::get_ticks());
-        println!("Time (ms): {}", time::get_time_ms());
-        println!("Time (ns): {}", time::get_time_ns());
+        print_message(&format!("Current time: {}", rtc::get_current_time()));
+        print_message(&format!("Current ticks: {}", time::get_ticks()));
+        print_message(&format!("Time (ms): {}", time::get_time_ms()));
+        print_message(&format!("Time (ns): {}", time::get_time_ns()));
 
-        println!("Uptime: {}", time::get_uptime_seconds());
-
-        // if let Some(precise_ns) = time::get_precise_time_ns() {
-        //     println!("Precise time (ns): {}", precise_ns);
-        // }
+        print_message(&format!("Uptime: {}", time::get_uptime_seconds()));
 
         if let Some(cpu_freq) = time::get_cpu_frequency_hz() {
-            println!("CPU frequency: {} Hz", cpu_freq);
+            print_message(&format!("CPU frequency: {} Hz", cpu_freq));
         }
     }
 
@@ -308,7 +263,7 @@ pub mod commands {
     }
 
     pub fn run() {
-        use crate::crude_storage::crude_storage; // Rhymes with grug
+        use crate::crude_storage::crude_storage;
 
         crude_storage::run();
     }
