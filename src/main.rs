@@ -16,15 +16,14 @@ use uefi::boot::{
 use uefi::proto::console::text::Output;
 
 use eclipse_os::vga_buffer::{self, Color};
-use eclipse_os::{print, println};
+use eclipse_os::{print, println, TEXT_OUTPUT};
+use eclipse_os::OutputForced;
 use eclipse_os::time;
 use eclipse_os::BootInfo;
-use eclipse_os::uefi_text_buffer::{print_message, clear_output};
+use eclipse_os::uefi_text_buffer::print_message;
 use uefi::prelude::*;
 
 use core::panic::PanicInfo;
-
-use once_cell::unsync::OnceCell;
 
 mod bump_allocator;
 use bump_allocator::BumpAllocator;
@@ -33,6 +32,8 @@ const HEAP_SIZE: usize = 4096;
 
 #[global_allocator]
 static GLOBAL: BumpAllocator<HEAP_SIZE> = BumpAllocator::new();
+
+
 
 #[entry]
 fn efi_main() -> Status {
@@ -57,23 +58,35 @@ fn efi_main() -> Status {
         }
     };
 
+    // Initialize the text output protocol and store it
+    let handle = get_handle_for_protocol::<Output>().unwrap();
+    let mut output = open_protocol_exclusive::<Output>(handle).unwrap();
+
+    // Store Output in global Once
+    let raw_output = OutputForced(&mut *output as *mut Output);
+    TEXT_OUTPUT.call_once(|| Mutex::new(raw_output));
+
     // Construct BootInfo on the stack (no heap allocation)
     info("efi_main: Constructing BootInfo\n");
     let mut boot_info = BootInfo {
-        text_output: OnceCell::new(),
-        memory_map: Mutex::new(memory_map),
+        memory_map: Mutex::new(memory_map).into(),
         _non_exhaustive: 0,
     };
 
-    // Initialize the text output protocol and store it
-    let handle = get_handle_for_protocol::<Output>().unwrap();
-    let output = open_protocol_exclusive::<Output>(handle).unwrap();
-    boot_info.text_output.set(Mutex::new(output)).unwrap();
-
-    clear_output(&boot_info);
+    // Re-lock our text output mutex for now
+    if let Some(mutex) = TEXT_OUTPUT.get() {
+        let output = mutex.lock();
+        unsafe {
+            if let Some(out) = output.0.as_mut() {
+                out.reset(false).expect("Failed to reset output!");
+            } else {
+                info("Failed to get mutable Output for reset!\n");
+            }
+        }
+    }
 
     // **Use print_message to display boot text**
-    print_message(&boot_info, "Eclipse OS Booting...\n");
+    print_message("Eclipse OS Booting...\n");
 
     info("efi_main: Using bump allocator for heap initialization\n");
     info("efi_main: Calling kernel_main\n");
@@ -123,7 +136,7 @@ fn kernel_main(boot_info: &mut BootInfo) -> ! {
 
     // Never exit
 
-    print_message(&boot_info, "Hello from eclipse OS!");
+    print_message("Hello from eclipse OS!");
 
     info("kernel_main: Entering infinite loop\n");
     loop {
@@ -267,4 +280,9 @@ fn print_ascii() {
     println!("");
     vga_buffer::set_color(Color::White, Color::Black);
     eclipse_os::task::keyboard::init_shell();
+}
+
+// Public getter for text_output
+pub fn get_text_output() -> &'static Mutex<OutputForced> {
+    TEXT_OUTPUT.get().expect("TEXT_OUTPUT not initialized")
 }

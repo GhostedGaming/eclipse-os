@@ -1,6 +1,6 @@
 # Variables
-OVMF_CODE = /usr/share/OVMF/OVMF_CODE_4M.fd
-OVMF_VARS = /usr/share/OVMF/OVMF_VARS_4M.fd
+OVMF_CODE = /usr/share/edk2/x64/OVMF_CODE.4m.fd
+OVMF_VARS = /usr/share/edk2/x64/OVMF_VARS.4m.fd
 FAT_IMG = fat.img
 ISO_FILE = eclipse-os.iso
 # Default to debug unless RELEASE=1 is set
@@ -40,14 +40,14 @@ qemu: iso
 	qemu-system-x86_64 \
 		-drive if=pflash,format=raw,readonly=on,file=$(OVMF_CODE) \
 		-drive format=raw,file=$(ISO_FILE) \
-		-smp 3 -m 2G -cpu max \
+		-smp 4 -m 6G -cpu max \
 		-device qemu-xhci -device usb-kbd -audiodev pa,id=snd0 -machine pcspk-audiodev=snd0 --serial stdio -M q35 --no-reboot
 
 qemu-nographic: iso
 	qemu-system-x86_64 \
 		-drive if=pflash,format=raw,readonly=on,file=$(OVMF_CODE) \
 		-drive format=raw,file=$(ISO_FILE) \
-		-smp 3 -m 2G -cpu max \
+		-smp 4 -m 6G -cpu max \
 		-device qemu-xhci -device usb-kbd -audiodev pa,id=snd0 -machine pcspk-audiodev=snd0 -M q35 --no-reboot -nographic
 
 clean:

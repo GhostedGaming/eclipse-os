@@ -8,9 +8,8 @@
 extern crate alloc;
 use core::panic::PanicInfo;
 use interrupts::enable_apic;
-use once_cell::unsync::OnceCell;
 use serial::info;
-use spin::Mutex;
+use spin::{Mutex, Once};
 use x86_64::instructions::interrupts::enable;
 use uefi::mem::memory_map::MemoryMapOwned;
 use uefi::boot::ScopedProtocol;
@@ -34,13 +33,18 @@ pub mod time;
 pub mod vga_buffer;
 pub mod uefi_text_buffer;
 
+// Make text_output globally accessible
+pub static TEXT_OUTPUT: Once<Mutex<OutputForced>> = Once::new();
+
+pub struct OutputForced(pub *mut Output);
+unsafe impl Send for OutputForced {}
+
+
 #[derive(Debug)]
 #[repr(C)]
 pub struct BootInfo {
     /// A map of the physical memory regions of the underlying machine.
-    pub memory_map: Mutex<MemoryMapOwned>,
-    /// UEFI text output protocol (wrapped in a Mutex for safe access)
-    pub text_output: OnceCell<Mutex<ScopedProtocol<Output>>>,
+    pub memory_map: Once<Mutex<MemoryMapOwned>>,
     /// Prevent external construction and ensure FFI compatibility
     pub _non_exhaustive: u8,
 }

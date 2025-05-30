@@ -14,7 +14,7 @@ harness = false
 
 [dependencies]
 volatile = "0.2.6"
-spin = "0.5.2"
+spin = { version = "0.10.0", default-features = false, features = ["mutex", "once", "spin_mutex"] }
 x86_64 = "0.14.2"
 uart_16550 = "0.2.0"
 pc-keyboard = "0.7.0"
@@ -26,7 +26,7 @@ serde_json = { version = "1.0", default-features = false, features = ["alloc"] }
 postcard = { version = "1.0", default-features = false, features = ["alloc"] }
 uefi = "0.35.0"
 heapless = "0.8.0"
-once_cell = { version = "1.19.0", default-features = false, features = ["alloc"] }
+once_cell = { version = "1.19.0", default-features = false, features = ["alloc", "critical-section"] }
 
 [dependencies.lazy_static]
 version = "1.0"
