@@ -11,19 +11,16 @@ use alloc::string::ToString;
 use eclipse_os::serial::{info, serial_write_str};
 use spin::Mutex;
 use uefi::boot::{
-    MemoryType, OpenProtocolParams, get_handle_for_protocol, open_protocol_exclusive,
+    MemoryType, get_handle_for_protocol, open_protocol_exclusive,
 };
-use uefi::mem::memory_map::MemoryMapOwned;
 use uefi::proto::console::text::Output;
 
-use eclipse_os::uefi_text_buffer;
 use eclipse_os::vga_buffer::{self, Color};
-use eclipse_os::{print, println, serial_log};
-use eclipse_os::{serial, time};
+use eclipse_os::{print, println};
+use eclipse_os::time;
 use eclipse_os::BootInfo;
-use eclipse_os::uefi_text_buffer::print_message;
-use uefi::{CStr16, prelude::*};
-use uefi::boot::ScopedProtocol;
+use eclipse_os::uefi_text_buffer::{print_message, clear_output};
+use uefi::prelude::*;
 
 use core::panic::PanicInfo;
 
@@ -36,11 +33,6 @@ const HEAP_SIZE: usize = 4096;
 
 #[global_allocator]
 static GLOBAL: BumpAllocator<HEAP_SIZE> = BumpAllocator::new();
-
-#[derive(Clone, Copy)]
-pub struct Protocol {
-    protocol: OpenProtocolParams,
-}
 
 #[entry]
 fn efi_main() -> Status {
@@ -78,6 +70,8 @@ fn efi_main() -> Status {
     let output = open_protocol_exclusive::<Output>(handle).unwrap();
     boot_info.text_output.set(Mutex::new(output)).unwrap();
 
+    clear_output(&boot_info);
+
     // **Use print_message to display boot text**
     print_message(&boot_info, "Eclipse OS Booting...\n");
 
@@ -87,7 +81,6 @@ fn efi_main() -> Status {
     // Pass BootInfo to kernel_main
     kernel_main(&mut boot_info)
 }
-
 
 fn kernel_main(boot_info: &mut BootInfo) -> ! {
     info("kernel_main: Entered kernel_main\n");
@@ -129,6 +122,8 @@ fn kernel_main(boot_info: &mut BootInfo) -> ! {
     // executor.run();
 
     // Never exit
+
+    print_message(&boot_info, "Hello from eclipse OS!");
 
     info("kernel_main: Entering infinite loop\n");
     loop {

@@ -10,7 +10,7 @@ use core::panic::PanicInfo;
 use interrupts::enable_apic;
 use once_cell::unsync::OnceCell;
 use serial::info;
-use spin::{Mutex, Once};
+use spin::Mutex;
 use x86_64::instructions::interrupts::enable;
 use uefi::mem::memory_map::MemoryMapOwned;
 use uefi::boot::ScopedProtocol;
