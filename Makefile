@@ -1,6 +1,6 @@
 # Variables
-# OVMF_CODE = /usr/share/edk2/x64/OVMF_CODE.4m.fd
-# OVMF_VARS = /usr/share/edk2/x64/OVMF_VARS.4m.fd
+# OVMF_CODE = /usr/share/edk2/x64/OVMF_CODE.4m.fd #Arch
+# OVMF_VARS = /usr/share/edk2/x64/OVMF_VARS.4m.fd #Arch
 OVMF_CODE = /usr/share/OVMF/OVMF_CODE_4M.fd
 OVMF_VARS = /usr/share/OVMF/OVMF_VARS_4M.fd
 FAT_IMG = fat.img
