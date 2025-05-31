@@ -42,7 +42,7 @@ macro_rules! serial_println {
 }
 
 /// Logs a message to the serial port with a given log level prefix.
-/// 
+///
 /// # Examples
 /// ```
 /// serial_log!("[INFO] ", "Hello, world!");
@@ -63,7 +63,7 @@ macro_rules! serial_log {
 }
 
 /// Logs a hexadecimal value to the serial port with a given log level prefix.
-/// 
+///
 /// # Examples
 /// ```
 /// serial_log_hex!("[INFO] ", 0xdeadbeef);

@@ -4,16 +4,16 @@
 #![feature(abi_x86_interrupt)]
 #![test_runner(crate::test_runner)]
 #![reexport_test_harness_main = "test_main"]
+#![allow(dead_code)]
 
 extern crate alloc;
 use core::panic::PanicInfo;
 use interrupts::enable_apic;
 use serial::info;
 use spin::{Mutex, Once};
-use x86_64::instructions::interrupts::enable;
 use uefi::mem::memory_map::MemoryMapOwned;
-use uefi::boot::ScopedProtocol;
 use uefi::proto::console::text::Output;
+use x86_64::instructions::interrupts::enable;
 
 pub mod cpu;
 pub mod crude_storage;
@@ -30,15 +30,14 @@ pub mod shutdown;
 pub mod task;
 pub mod text_editor;
 pub mod time;
-pub mod vga_buffer;
 pub mod uefi_text_buffer;
+pub mod vga_buffer;
 
 // Make text_output globally accessible
 pub static TEXT_OUTPUT: Once<Mutex<OutputForced>> = Once::new();
 
 pub struct OutputForced(pub *mut Output);
 unsafe impl Send for OutputForced {}
-
 
 #[derive(Debug)]
 #[repr(C)]

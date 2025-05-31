@@ -14,7 +14,7 @@ pub fn multiply(left: f64, right: f64) -> f64 {
 pub fn divide(left: f64, right: f64) -> f64 {
     if right == 0.0 || right == -0.0 {
         panic!("Cannot divide by 0");
-    } else if right == f64::INFINITY || right == f64::NEG_INFINITY {
+    } else if right.is_infinite() {
         panic!("Cannot divide by infinity");
     } else {
         left / right

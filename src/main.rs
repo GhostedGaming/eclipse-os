@@ -3,6 +3,7 @@
 #![feature(custom_test_frameworks)]
 #![test_runner(eclipse_os::test_runner)]
 #![reexport_test_harness_main = "test_main"]
+#![allow(dead_code)]
 
 extern crate alloc;
 use alloc::format;
@@ -10,20 +11,15 @@ use alloc::format;
 use alloc::string::ToString;
 use eclipse_os::pc_speaker::init_pc_speaker;
 use eclipse_os::serial::{info, serial_write_str};
-use eclipse_os::task::executor::Executor;
-use eclipse_os::task::{keyboard, Task};
 use spin::Mutex;
-use uefi::boot::{
-    MemoryType, get_handle_for_protocol, open_protocol_exclusive,
-};
+use uefi::boot::{get_handle_for_protocol, open_protocol_exclusive};
 use uefi::proto::console::text::Output;
 
-use eclipse_os::vga_buffer::{self, Color};
-use eclipse_os::{print, println, TEXT_OUTPUT};
 use eclipse_os::OutputForced;
 use eclipse_os::time;
-use eclipse_os::BootInfo;
 use eclipse_os::uefi_text_buffer::print_message;
+use eclipse_os::vga_buffer::{self, Color};
+use eclipse_os::{TEXT_OUTPUT, print, println};
 use uefi::prelude::*;
 
 use core::panic::PanicInfo;
@@ -35,8 +31,6 @@ const HEAP_SIZE: usize = 4096;
 
 #[global_allocator]
 static GLOBAL: BumpAllocator<HEAP_SIZE> = BumpAllocator::new();
-
-
 
 #[entry]
 fn efi_main() -> Status {
@@ -50,16 +44,16 @@ fn efi_main() -> Status {
     info("efi_main: UEFI helpers initialized\n");
 
     // Get the UEFI memory map
-    let memory_map = match uefi::boot::memory_map(MemoryType::LOADER_DATA) {
-        Ok(map) => {
-            info("efi_main: Got UEFI memory map\n");
-            map
-        }
-        Err(e) => {
-            info("efi_main: Failed to get UEFI memory map\n");
-            return e.status();
-        }
-    };
+    // let memory_map = match uefi::boot::memory_map(MemoryType::LOADER_DATA) {
+    //     Ok(map) => {
+    //         info("efi_main: Got UEFI memory map\n");
+    //         map
+    //     }
+    //     Err(e) => {
+    //         info("efi_main: Failed to get UEFI memory map\n");
+    //         return e.status();
+    //     }
+    // };
 
     // Initialize the text output protocol and store it
     let handle = get_handle_for_protocol::<Output>().unwrap();
@@ -68,13 +62,6 @@ fn efi_main() -> Status {
     // Store Output in global Once
     let raw_output = OutputForced(&mut *output as *mut Output);
     TEXT_OUTPUT.call_once(|| Mutex::new(raw_output));
-
-    // Construct BootInfo on the stack (no heap allocation)
-    info("efi_main: Constructing BootInfo\n");
-    let mut boot_info = BootInfo {
-        memory_map: Mutex::new(memory_map).into(),
-        _non_exhaustive: 0,
-    };
 
     // Re-lock our text output mutex for now
     if let Some(mutex) = TEXT_OUTPUT.get() {
@@ -95,10 +82,10 @@ fn efi_main() -> Status {
     info("efi_main: Calling kernel_main\n");
 
     // Pass BootInfo to kernel_main
-    kernel_main(&mut boot_info)
+    kernel_main()
 }
 
-fn kernel_main(boot_info: &mut BootInfo) -> ! {
+fn kernel_main() -> ! {
     info("kernel_main: Entered kernel_main\n");
     info("kernel_main: Using bump allocator for heap allocations\n");
 
@@ -172,7 +159,7 @@ fn play_startup_sound() {
 
 /// Helper function to print status messages with consistent formatting
 fn print_status(component: &str, result: Result<(), ()>) {
-    info(&format!("print_status: {} ...\n", component));
+    info(&format!("print_status: {component} ...\n"));
     print!("{} [", component);
 
     match result {
@@ -270,10 +257,10 @@ async fn async_number() -> u32 {
 async fn example_task() {
     info("example_task: started\n");
     let number = async_number().await;
-    info(&format!("example_task: async_number returned {}\n", number));
+    info(&format!("example_task: async_number returned {number}\n"));
     let success = number == 42;
     print_status(
-        &format!("Async Number [{}]", number),
+        &format!("Async Number [{number}]"),
         if success { Ok(()) } else { Err(()) },
     );
 

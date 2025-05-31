@@ -2,7 +2,7 @@ use crate::{print, println, vga_buffer};
 use alloc::string::String;
 use alloc::vec::Vec;
 extern crate alloc;
-use crate::crude_storage::crude_storage;
+use crate::crude_storage;
 use lazy_static::lazy_static;
 use spin::Mutex;
 

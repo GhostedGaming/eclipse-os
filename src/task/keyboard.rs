@@ -1,7 +1,7 @@
 use crate::serial::info;
 use crate::shell::Shell;
 use crate::text_editor::express_editor::{self};
-use crate::uefi_text_buffer::{print_message, print_char, backspace};
+use crate::uefi_text_buffer::{backspace, print_char, print_message};
 use alloc::string::ToString;
 use alloc::sync::Arc;
 use conquer_once::spin::OnceCell;
@@ -35,7 +35,7 @@ pub fn init_shell() {
 /// Called by the keyboard interrupt handler
 pub(crate) fn add_scancode(scancode: u8) {
     if let Ok(queue) = SCANCODE_QUEUE.try_get() {
-        if let Err(_) = queue.push(scancode) {
+        if queue.push(scancode).is_err() {
             print_message("WARNING: scancode queue full; dropping keyboard input");
         } else {
             WAKER.wake();
@@ -48,6 +48,12 @@ pub(crate) fn add_scancode(scancode: u8) {
 // Stream of scancodes from the keyboard
 pub struct ScancodeStream {
     _private: (),
+}
+
+impl Default for ScancodeStream {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ScancodeStream {
@@ -71,7 +77,7 @@ impl Stream for ScancodeStream {
             return Poll::Ready(Some(scancode));
         }
 
-        WAKER.register(&cx.waker());
+        WAKER.register(cx.waker());
 
         match queue.pop() {
             Some(scancode) => {
@@ -113,17 +119,12 @@ pub async fn print_keypresses() {
             // Only process key down events for most keys
             if key_event.state == KeyState::Down {
                 // Handle special key combinations first
-                if ctrl_pressed {
-                    match key_event.code {
-                        KeyCode::C => {
-                            // Check if editor is active
-                            let editor_active = express_editor::EDITOR_DATA.lock().active;
-                            if editor_active {
-                                express_editor::exit_editor();
-                                continue;
-                            }
-                        }
-                        _ => {}
+                if ctrl_pressed && key_event.code == KeyCode::C {
+                    // Check if editor is active
+                    let editor_active = express_editor::EDITOR_DATA.lock().active;
+                    if editor_active {
+                        express_editor::exit_editor();
+                        continue;
                     }
                 }
 

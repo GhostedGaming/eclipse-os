@@ -4,7 +4,7 @@ use spin::Mutex;
 
 use crate::intereperter::components::tokens::Tokens;
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct Environment {
     pub variables: BTreeMap<String, f64>,
 }
@@ -20,9 +20,7 @@ pub struct Function {
 
 impl Environment {
     pub fn new() -> Self {
-        Environment {
-            variables: BTreeMap::new(),
-        }
+        Environment::default()
     }
 
     pub fn set(&mut self, name: String, value: f64) {
@@ -31,12 +29,6 @@ impl Environment {
 
     pub fn get(&self, name: &str) -> Option<f64> {
         self.variables.get(name).copied()
-    }
-
-    pub fn clone(&self) -> Self {
-        Environment {
-            variables: self.variables.clone(),
-        }
     }
 }
 

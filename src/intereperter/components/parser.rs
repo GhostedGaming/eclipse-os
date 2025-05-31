@@ -100,10 +100,10 @@ impl Parser {
     }
 
     fn consume_semicolon(&mut self, text: &str) {
-        if !matches!(self.advance(), Tokens::Semicolon) {
-            if !matches!(self.advance(), Tokens::Semicolon) {
-                println!("Expected ';' after {}", text);
-            }
+        if !matches!(self.advance(), Tokens::Semicolon)
+            && !matches!(self.advance(), Tokens::Semicolon)
+        {
+            println!("Expected ';' after {}", text);
         }
     }
 
@@ -400,20 +400,19 @@ impl Parser {
             return last_value;
         }
 
-        if let Tokens::Identifier(name) = self.peek(0).clone() {
-            if let Tokens::Assign = self.peek(1) {
-                if GLOBAL_ENV.lock().get(&name).is_none() {
-                    println!(
-                        "Error: Variable '{}' must be declared with 'let' before assignment",
-                        name
-                    );
-                    self.advance();
-                    self.advance();
-                    let _ = self.expression();
-                    self.consume_semicolon("assignment statement");
-                    return 0.0;
-                }
-            }
+        if let Tokens::Identifier(name) = self.peek(0).clone()
+            && let Tokens::Assign = self.peek(1)
+            && GLOBAL_ENV.lock().get(&name).is_none()
+        {
+            println!(
+                "Error: Variable '{}' must be declared with 'let' before assignment",
+                name
+            );
+            self.advance();
+            self.advance();
+            let _ = self.expression();
+            self.consume_semicolon("assignment statement");
+            return 0.0;
         }
 
         let result = self.expression();
@@ -492,21 +491,21 @@ impl Parser {
     }
 
     fn expression(&mut self) -> f64 {
-        if let Tokens::Identifier(name) = self.peek(0).clone() {
-            if let Tokens::Assign = self.peek(1) {
-                if GLOBAL_ENV.lock().get(&name).is_none() {
-                    self.advance();
-                    self.advance();
-                    let value = self.expression();
-                    return value;
-                } else {
-                    let var_name = name;
-                    self.advance();
-                    self.advance();
-                    let value = self.expression();
-                    GLOBAL_ENV.lock().set(var_name, value);
-                    return value;
-                }
+        if let Tokens::Identifier(name) = self.peek(0).clone()
+            && let Tokens::Assign = self.peek(1)
+        {
+            if GLOBAL_ENV.lock().get(&name).is_none() {
+                self.advance();
+                self.advance();
+                let value = self.expression();
+                return value;
+            } else {
+                let var_name = name;
+                self.advance();
+                self.advance();
+                let value = self.expression();
+                GLOBAL_ENV.lock().set(var_name, value);
+                return value;
             }
         }
         self.comparison()
@@ -701,7 +700,7 @@ impl Parser {
             let result = function_parser.parse();
             *GLOBAL_ENV.lock() = global_env_backup;
             self.current = current_pos;
-            return result;
+            result
         } else {
             println!("Undefined function: {}", name);
             0.0

@@ -117,6 +117,12 @@ pub struct PCSpeakerDriver {
     note_timer: u32,
 }
 
+impl Default for PCSpeakerDriver {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PCSpeakerDriver {
     /// Create a new PC Speaker driver instance
     pub fn new() -> Self {
@@ -145,7 +151,7 @@ impl PCSpeakerDriver {
         }
 
         // Clamp frequency to reasonable bounds
-        let freq = frequency.max(20).min(20000);
+        let freq = frequency.clamp(20, 20000);
         let divisor = PIT_FREQUENCY / freq;
 
         unsafe {
@@ -345,10 +351,8 @@ impl PCSpeakerDriver {
     pub fn timer_tick(&mut self) {
         // Handle timed beeps
         let current_ticks = BEEP_TICKS.load(Ordering::SeqCst);
-        if current_ticks > 0 {
-            if BEEP_TICKS.fetch_sub(1, Ordering::SeqCst) == 1 {
-                self.stop_sound();
-            }
+        if current_ticks > 0 && BEEP_TICKS.fetch_sub(1, Ordering::SeqCst) == 1 {
+            self.stop_sound();
         }
 
         // Handle music sequence playback

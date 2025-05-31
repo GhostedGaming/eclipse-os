@@ -5,7 +5,6 @@ use crate::intereperter::components::env;
 use crate::intereperter::components::ops;
 use crate::intereperter::components::parser;
 use crate::intereperter::components::tokens;
-use crate::println;
 use crate::text_editor::express_editor::get_text;
 use alloc::string::String;
 use alloc::vec::Vec;
@@ -52,14 +51,14 @@ pub fn run_example() {
         current_block.push_str(trimmed);
 
         // If we're not inside a block or we've completed a block, evaluate it
-        if brace_count == 0 && !current_block.is_empty() {
-            if current_block.ends_with(';')
+        if brace_count == 0
+            && !current_block.is_empty()
+            && (current_block.ends_with(';')
                 || current_block.ends_with('}')
-                || !current_block.contains('{')
-            {
-                code_blocks.push(current_block.clone());
-                current_block.clear();
-            }
+                || !current_block.contains('{'))
+        {
+            code_blocks.push(current_block.clone());
+            current_block.clear();
         }
     }
 
@@ -73,7 +72,7 @@ pub fn run_example() {
         // Tokenize and parse the block
         let tokens = lexer(&block);
         let mut parser = Parser::new(tokens);
-        let result = parser.parse();
+        parser.parse();
     }
 }
 

@@ -6,6 +6,12 @@ pub struct SimpleExecutor {
     task_queue: VecDeque<Task>,
 }
 
+impl Default for SimpleExecutor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SimpleExecutor {
     pub fn new() -> SimpleExecutor {
         SimpleExecutor {
@@ -36,7 +42,7 @@ fn dummy_raw_waker() -> RawWaker {
     }
 
     let vtable = &RawWakerVTable::new(clone, no_op, no_op, no_op);
-    RawWaker::new(0 as *const (), vtable)
+    RawWaker::new(core::ptr::null::<()>(), vtable)
 }
 
 fn dummy_waker() -> Waker {

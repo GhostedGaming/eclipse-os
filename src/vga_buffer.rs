@@ -73,7 +73,7 @@ impl Color {
 /// A combination of a foreground and a background color.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(transparent)]
-struct ColorCode(u8);
+pub struct ColorCode(u8);
 
 impl ColorCode {
     /// Create a new `ColorCode` with the given foreground and background colors.
@@ -91,9 +91,9 @@ impl ColorCode {
 /// A screen character in the VGA text buffer, consisting of an ASCII character and a `ColorCode`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(C)]
-struct ScreenChar {
-    ascii_character: u8,
-    color_code: ColorCode,
+pub struct ScreenChar {
+    pub ascii_character: u8,
+    pub color_code: ColorCode,
 }
 
 /// The height of the text buffer (normally 25 lines).
@@ -547,15 +547,13 @@ pub fn write_char_at(row: usize, col: usize, ch: u8, foreground: Color, backgrou
 pub fn read_char_at(row: usize, col: usize) -> Option<(u8, Color, Color)> {
     use x86_64::instructions::interrupts;
     interrupts::without_interrupts(|| {
-        if let Some(screen_char) = WRITER.lock().read_char_at(row, col) {
-            Some((
+        WRITER.lock().read_char_at(row, col).map(|screen_char| {
+            (
                 screen_char.ascii_character,
                 screen_char.color_code.fg(),
                 screen_char.color_code.bg(),
-            ))
-        } else {
-            None
-        }
+            )
+        })
     })
 }
 

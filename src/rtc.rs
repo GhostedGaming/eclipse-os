@@ -34,13 +34,19 @@ impl fmt::Display for DateTime {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let (hour, minute, is_pm) = self.format_12h();
         let ampm = if is_pm { "PM" } else { "AM" };
-        write!(f, "{:02}:{:02} {}", hour, minute, ampm)
+        write!(f, "{hour:02}:{minute:02} {ampm}")
     }
 }
 
 pub struct RTC {
     cmos_address: Port<u8>,
     cmos_data: Port<u8>,
+}
+
+impl Default for RTC {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl RTC {

@@ -9,6 +9,18 @@ pub struct CpuInfo {
     pub tsc_frequency_hz: Option<u64>,
 }
 
+impl Default for CpuInfo {
+    fn default() -> Self {
+        CpuInfo {
+            vendor: CpuVendor::Unknown,
+            base_frequency_mhz: None,
+            max_frequency_mhz: None,
+            bus_frequency_mhz: None,
+            tsc_frequency_hz: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CpuVendor {
     Intel,

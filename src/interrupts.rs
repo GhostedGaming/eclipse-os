@@ -31,6 +31,7 @@ lazy_static! {
         idt[32].set_handler_fn(timer_interrupt_handler);
         idt[42].set_handler_fn(test_interrupt_handler);
         idt[255].set_handler_fn(spurious_interrupt_handler); // Register spurious interrupt handler
+        idt[InterruptIndex::Keyboard.as_usize()].set_handler_fn(keyboard_interrupt_handler);
         idt
     };
 }

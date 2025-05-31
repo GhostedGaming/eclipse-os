@@ -1,5 +1,5 @@
 use crate::pc_speaker::{Melody, play_melody};
-use crate::uefi_text_buffer::{print_char, print_message, backspace, get_cursor_position, set_cursor_position, clear_output};
+use crate::uefi_text_buffer::{backspace, print_char, print_message};
 use alloc::format;
 use alloc::string::String;
 
@@ -8,6 +8,12 @@ pub struct Shell {
     cursor_position: usize,
     prompt: &'static str,
     input_start_col: usize,
+}
+
+impl Default for Shell {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Shell {
@@ -92,17 +98,17 @@ impl Shell {
     fn redraw_input_line(&mut self) {
         // This is simplified since UEFI text mode is more limited
         // We'll just reprint the entire line for now
-        
+
         // Clear current line by printing spaces (simplified approach)
         for _ in 0..80 {
             print_char(' ');
         }
-        
+
         // Print prompt again
         for ch in self.prompt.chars() {
             print_char(ch);
         }
-        
+
         // Print the current input buffer
         for ch in self.input_buffer.chars() {
             print_char(ch);
@@ -174,7 +180,7 @@ impl Shell {
             }
             _ => {
                 play_melody(Melody::Error);
-                print_message(&format!("Unknown command: '{}'", command));
+                print_message(&format!("Unknown command: '{command}'"));
                 print_message("Type 'help' for available commands.");
             }
         }
@@ -184,11 +190,10 @@ impl Shell {
 // Commands module updated for UEFI text buffer
 pub mod commands {
     use alloc::format;
-    use alloc::string::{String, ToString};
 
+    use crate::rtc;
     use crate::text_editor::express_editor;
-    use crate::uefi_text_buffer::{print_message, clear_output};
-    use crate::{crude_storage, rtc};
+    use crate::uefi_text_buffer::{clear_output, print_message};
 
     pub fn help() {
         print_message("Available commands:");
@@ -252,18 +257,18 @@ pub mod commands {
         print_message(&format!("Uptime: {}", time::get_uptime_seconds()));
 
         if let Some(cpu_freq) = time::get_cpu_frequency_hz() {
-            print_message(&format!("CPU frequency: {} Hz", cpu_freq));
+            print_message(&format!("CPU frequency: {cpu_freq} Hz"));
         }
     }
 
     pub fn read() {
-        use crate::crude_storage::crude_storage;
+        use crate::crude_storage;
 
         crude_storage::read();
     }
 
     pub fn run() {
-        use crate::crude_storage::crude_storage;
+        use crate::crude_storage;
 
         crude_storage::run();
     }

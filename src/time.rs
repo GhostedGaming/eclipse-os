@@ -16,13 +16,13 @@ pub fn init() {
     cpuid::init_cpu_info();
 
     // Get CPU frequency for timing calculations
-    if let Some(cpu_info) = cpuid::get_cpu_info() {
-        if let Some(freq) = cpu_info.get_timing_frequency_hz() {
-            unsafe {
-                CPU_FREQUENCY_HZ = Some(freq);
-            }
-            crate::println!("CPU frequency: {} Hz", freq);
+    if let Some(cpu_info) = cpuid::get_cpu_info()
+        && let Some(freq) = cpu_info.get_timing_frequency_hz()
+    {
+        unsafe {
+            CPU_FREQUENCY_HZ = Some(freq);
         }
+        crate::println!("CPU frequency: {} Hz", freq);
     }
 
     // Read initial time from RTC
