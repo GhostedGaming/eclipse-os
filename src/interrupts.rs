@@ -142,6 +142,10 @@ extern "x86-interrupt" fn timer_interrupt_handler(stack_frame: InterruptStackFra
         let eoi_reg = APIC_BASE.offset(0xB0 / 4);
         core::ptr::write_volatile(eoi_reg, 0);
     }
+    
+    // Handle PC speaker timing
+    crate::pc_speaker::timer_tick();
+    
     let _ = stack_frame;
 }
 

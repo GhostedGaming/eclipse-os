@@ -32,6 +32,7 @@ pub mod text_editor;
 pub mod time;
 pub mod uefi_text_buffer;
 pub mod vga_buffer;
+pub mod wifi;
 
 // Make text_output globally accessible
 pub static TEXT_OUTPUT: Once<Mutex<OutputForced>> = Once::new();
