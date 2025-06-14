@@ -13,7 +13,7 @@ struct GdtEntry {
     base_high: u8,
 }
 
-#[repr(C, packed)]
+/*#[repr(C, packed)]
 struct TssEntry {
     limit_low: u16,
     base_low: u16,
@@ -23,7 +23,7 @@ struct TssEntry {
     base_high: u8,
     base_upper: u32,
     reserved: u32,
-}
+}*/
 
 #[repr(C, packed)]
 struct GdtPointer {
