@@ -215,9 +215,31 @@ unsafe fn read_cr2() -> u64 {
 pub fn init_idt() {
     let idt_addr = {
         let mut idt = IDT.lock();
+        
+        // Exception handlers (0-31)
+        idt[0].set_handler(divide_error_handler as u64, 0);
+        idt[1].set_handler(debug_handler as u64, 0);
+        idt[2].set_handler(nmi_handler as u64, 0);
         idt[3].set_handler(breakpoint_handler as u64, 0);
+        idt[4].set_handler(overflow_handler as u64, 0);
+        idt[5].set_handler(bound_range_exceeded_handler as u64, 0);
+        idt[6].set_handler(invalid_opcode_handler as u64, 0);
+        idt[7].set_handler(device_not_available_handler as u64, 0);
         idt[8].set_handler(double_fault_handler as u64, gdt::DOUBLE_FAULT_IST_INDEX as u8);
+        // 9 is reserved
+        idt[10].set_handler(invalid_tss_handler as u64, 0);
+        idt[11].set_handler(segment_not_present_handler as u64, 0);
+        idt[12].set_handler(stack_segment_fault_handler as u64, 0);
+        idt[13].set_handler(general_protection_fault_handler as u64, 0);
         idt[14].set_handler(page_fault_handler as u64, 0);
+        // 15 is reserved
+        idt[16].set_handler(x87_floating_point_handler as u64, 0);
+        idt[17].set_handler(alignment_check_handler as u64, 0);
+        idt[18].set_handler(machine_check_handler as u64, 0);
+        idt[19].set_handler(simd_floating_point_handler as u64, 0);
+        idt[20].set_handler(virtualization_handler as u64, 0);
+        
+        // Hardware interrupts
         idt[InterruptIndex::Timer.as_usize()].set_handler(timer_interrupt_handler as u64, 0);
         idt[InterruptIndex::Keyboard.as_usize()].set_handler(keyboard_interrupt_handler as u64, 0);
         
@@ -290,4 +312,106 @@ fn test_breakpoint_exception() {
     unsafe {
         core::arch::asm!("int3", options(nomem, nostack));
     }
+}
+
+extern "x86-interrupt" fn divide_error_handler(stack_frame: &mut InterruptStackFrame) {
+    println!("EXCEPTION: DIVIDE BY ZERO\n{:#?}", stack_frame);
+    hlt_loop();
+}
+
+extern "x86-interrupt" fn debug_handler(stack_frame: &mut InterruptStackFrame) {
+    println!("EXCEPTION: DEBUG\n{:#?}", stack_frame);
+}
+
+extern "x86-interrupt" fn nmi_handler(stack_frame: &mut InterruptStackFrame) {
+    println!("EXCEPTION: NON-MASKABLE INTERRUPT\n{:#?}", stack_frame);
+}
+
+extern "x86-interrupt" fn overflow_handler(stack_frame: &mut InterruptStackFrame) {
+    println!("EXCEPTION: OVERFLOW\n{:#?}", stack_frame);
+    hlt_loop();
+}
+
+extern "x86-interrupt" fn bound_range_exceeded_handler(stack_frame: &mut InterruptStackFrame) {
+    println!("EXCEPTION: BOUND RANGE EXCEEDED\n{:#?}", stack_frame);
+    hlt_loop();
+}
+
+extern "x86-interrupt" fn invalid_opcode_handler(stack_frame: &mut InterruptStackFrame) {
+    println!("EXCEPTION: INVALID OPCODE\n{:#?}", stack_frame);
+    hlt_loop();
+}
+
+extern "x86-interrupt" fn device_not_available_handler(stack_frame: &mut InterruptStackFrame) {
+    println!("EXCEPTION: DEVICE NOT AVAILABLE\n{:#?}", stack_frame);
+    hlt_loop();
+}
+
+extern "x86-interrupt" fn invalid_tss_handler(
+    stack_frame: &mut InterruptStackFrame,
+    error_code: u64,
+) {
+    println!("EXCEPTION: INVALID TSS");
+    println!("Error Code: {:#x}", error_code);
+    println!("{:#?}", stack_frame);
+    hlt_loop();
+}
+
+extern "x86-interrupt" fn segment_not_present_handler(
+    stack_frame: &mut InterruptStackFrame,
+    error_code: u64,
+) {
+    println!("EXCEPTION: SEGMENT NOT PRESENT");
+    println!("Error Code: {:#x}", error_code);
+    println!("{:#?}", stack_frame);
+    hlt_loop();
+}
+
+extern "x86-interrupt" fn stack_segment_fault_handler(
+    stack_frame: &mut InterruptStackFrame,
+    error_code: u64,
+) {
+    println!("EXCEPTION: STACK SEGMENT FAULT");
+    println!("Error Code: {:#x}", error_code);
+    println!("{:#?}", stack_frame);
+    hlt_loop();
+}
+
+extern "x86-interrupt" fn general_protection_fault_handler(
+    stack_frame: &mut InterruptStackFrame,
+    error_code: u64,
+) {
+    println!("EXCEPTION: GENERAL PROTECTION FAULT");
+    println!("Error Code: {:#x}", error_code);
+    println!("{:#?}", stack_frame);
+    hlt_loop();
+}
+
+extern "x86-interrupt" fn x87_floating_point_handler(stack_frame: &mut InterruptStackFrame) {
+    println!("EXCEPTION: x87 FLOATING POINT\n{:#?}", stack_frame);
+    hlt_loop();
+}
+
+extern "x86-interrupt" fn alignment_check_handler(
+    stack_frame: &mut InterruptStackFrame,
+    error_code: u64,
+) {
+    println!("EXCEPTION: ALIGNMENT CHECK");
+    println!("Error Code: {:#x}", error_code);
+    println!("{:#?}", stack_frame);
+    hlt_loop();
+}
+
+extern "x86-interrupt" fn machine_check_handler(stack_frame: &mut InterruptStackFrame) -> ! {
+    panic!("EXCEPTION: MACHINE CHECK\n{:#?}", stack_frame);
+}
+
+extern "x86-interrupt" fn simd_floating_point_handler(stack_frame: &mut InterruptStackFrame) {
+    println!("EXCEPTION: SIMD FLOATING POINT\n{:#?}", stack_frame);
+    hlt_loop();
+}
+
+extern "x86-interrupt" fn virtualization_handler(stack_frame: &mut InterruptStackFrame) {
+    println!("EXCEPTION: VIRTUALIZATION\n{:#?}", stack_frame);
+    hlt_loop();
 }
