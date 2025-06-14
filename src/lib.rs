@@ -7,13 +7,12 @@
 #![allow(dead_code)]
 
 extern crate alloc;
+
 use core::panic::PanicInfo;
-use interrupts::enable_apic;
 use serial::info;
 use spin::{Mutex, Once};
 use uefi::mem::memory_map::MemoryMapOwned;
 use uefi::proto::console::text::Output;
-use x86_64::instructions::interrupts::enable;
 
 pub mod cpu;
 pub mod crude_storage;
@@ -50,12 +49,23 @@ pub struct BootInfo {
 }
 
 pub fn init() {
-    info("init: enabling interrupts\n");
-    enable();
-    info("init: interrupts::enable_apic()\n");
-    enable_apic();
-    info("init: interrupts::init_idt()\n");
+    info("init: initializing GDT\n");
+    gdt::init();
+    
+    info("init: initializing IDT\n");
     interrupts::init_idt();
+    
+    info("init: initializing PICs\n");
+    unsafe { 
+        interrupts::PICS.lock().initialize();
+    }
+    
+    info("init: enabling interrupts\n");
+    // Enable interrupts using inline assembly instead of x86_64 crate
+    unsafe {
+        core::arch::asm!("sti", options(nomem, nostack));
+    }
+    
     info("init: done\n");
 }
 
@@ -104,11 +114,14 @@ pub enum QemuExitCode {
 
 pub fn exit_qemu(exit_code: QemuExitCode) {
     info("exit_qemu: exiting QEMU\n");
-    use x86_64::instructions::port::Port;
-
     unsafe {
-        let mut port = Port::new(0xf4);
-        port.write(exit_code as u32);
+        // Direct port I/O instead of using x86_64 crate
+        core::arch::asm!(
+            "out dx, eax",
+            in("dx") 0xf4u16,
+            in("eax") exit_code as u32,
+            options(nomem, nostack, preserves_flags)
+        );
     }
     info("exit_qemu: write to port done\n");
 }
@@ -116,9 +129,14 @@ pub fn exit_qemu(exit_code: QemuExitCode) {
 pub fn hlt_loop() -> ! {
     info("hlt_loop: entering halt loop\n");
     loop {
-        x86_64::instructions::hlt();
+        unsafe {
+            core::arch::asm!("hlt", options(nomem, nostack));
+        }
     }
 }
+
+// Re-export commonly used items for convenience
+pub use interrupts::PICS;
 
 #[cfg(test)]
 #[panic_handler]
