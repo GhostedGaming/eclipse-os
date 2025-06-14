@@ -6,10 +6,11 @@
 #![reexport_test_harness_main = "test_main"]
 
 extern crate alloc;
+
 use core::panic::PanicInfo;
 
 pub mod allocator;
-pub mod gdt;
+pub mod cpu;
 pub mod interrupts;
 pub mod memory;
 pub mod serial;
@@ -23,16 +24,22 @@ pub mod pc_speaker;
 pub mod text_editor;
 pub mod intereperter;
 pub mod coms;
-pub mod cpu;
 pub mod rtc;
 pub mod crude_storage;
 
 pub fn init() {
-    gdt::init();
+    cpu::gdt::init();
     interrupts::init_idt();
-    unsafe { interrupts::PICS.lock().initialize() };
-    x86_64::instructions::interrupts::enable();
+    unsafe { 
+        interrupts::PICS.lock().initialize();
+    }
+    
+    // Enable interrupts using inline assembly
+    unsafe {
+        core::arch::asm!("sti", options(nomem, nostack));
+    }
 }
+
 pub trait Testable {
     fn run(&self) -> ();
 }
@@ -60,7 +67,7 @@ pub fn test_panic_handler(info: &PanicInfo) -> ! {
     serial_println!("[failed]\n");
     serial_println!("Error: {}\n", info);
     exit_qemu(QemuExitCode::Failed);
-    hlt_loop();
+    hlt_loop()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -71,19 +78,28 @@ pub enum QemuExitCode {
 }
 
 pub fn exit_qemu(exit_code: QemuExitCode) {
-    use x86_64::instructions::port::Port;
-
     unsafe {
-        let mut port = Port::new(0xf4);
-        port.write(exit_code as u32);
+        // Direct port I/O for QEMU exit
+        core::arch::asm!(
+            "out dx, eax",
+            in("dx") 0xf4u16,
+            in("eax") exit_code as u32,
+            options(nomem, nostack, preserves_flags)
+        );
     }
 }
 
 pub fn hlt_loop() -> ! {
     loop {
-        x86_64::instructions::hlt();
+        unsafe {
+            core::arch::asm!("hlt", options(nomem, nostack));
+        }
     }
 }
+
+// Re-export commonly used items for convenience
+pub use interrupts::PICS;
+pub use cpu::gdt;
 
 #[cfg(test)]
 use bootloader::{BootInfo, entry_point};
@@ -103,4 +119,16 @@ fn test_kernel_main(_boot_info: &'static BootInfo) -> ! {
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     test_panic_handler(info)
+}
+
+// Test cases
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test_case]
+    fn test_init_sequence() {
+        // Test that initialization doesn't panic
+        // This will be called after init() in test_kernel_main
+    }
 }
