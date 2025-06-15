@@ -20,7 +20,14 @@ pub extern "C" fn _start() -> ! {
 #[allow(unconditional_recursion)]
 fn stack_overflow() {
     stack_overflow(); // for each recursion, the return address is pushed
-    volatile::Volatile::new(0).read(); // prevent tail recursion optimizations
+    
+    // Prevent tail recursion optimizations by adding a volatile read
+    // Use a valid pointer instead of 0
+    unsafe { 
+        let dummy_var = 0u8;
+        let ptr = core::ptr::NonNull::new(&dummy_var as *const u8 as *mut u8).unwrap();
+        volatile::VolatilePtr::new(ptr).read();
+    }
 }
 
 // IDT Entry structure

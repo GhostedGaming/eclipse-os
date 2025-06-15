@@ -13,7 +13,7 @@ name = "stack_overflow"
 harness = false
 
 [dependencies]
-volatile = "0.6.1"
+volatile = "0.5.3"
 spin = { version = "0.10.0", default-features = false, features = ["mutex", "once", "spin_mutex"] }
 uart_16550 = "0.3.2"
 pc-keyboard = "0.8.0"

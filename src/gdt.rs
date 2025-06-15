@@ -132,7 +132,7 @@ pub fn init() {
 
         // Load data segment selectors
         core::arch::asm!(
-            "mov {0}, {1}",
+            "mov {0}, {1:r}",
             "mov ds, {0:x}",
             "mov es, {0:x}",
             "mov fs, {0:x}",
