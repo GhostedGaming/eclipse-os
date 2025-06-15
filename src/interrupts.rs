@@ -491,50 +491,60 @@ unsafe extern "C" {
 }
 
 pub fn init_idt() {
-    let idt_addr = {
-        let mut idt = IDT.lock();
-
-        // Exception handlers (0-31)
-        idt[0].set_handler(divide_error_wrapper as u64, 0);
-        idt[1].set_handler(debug_wrapper as u64, 0);
-        idt[2].set_handler(nmi_wrapper as u64, 0);
-        idt[3].set_handler(breakpoint_wrapper as u64, 0);
-        idt[4].set_handler(overflow_wrapper as u64, 0);
-        idt[5].set_handler(bound_range_exceeded_wrapper as u64, 0);
-        idt[6].set_handler(invalid_opcode_wrapper as u64, 0);
-        idt[7].set_handler(device_not_available_wrapper as u64, 0);
-        idt[8].set_handler(double_fault_wrapper as u64, gdt::DOUBLE_FAULT_IST_INDEX as u8);
-        // 9 is reserved
-        idt[10].set_handler(invalid_tss_wrapper as u64, 0);
-        idt[11].set_handler(segment_not_present_wrapper as u64, 0);
-        idt[12].set_handler(stack_segment_fault_wrapper as u64, 0);
-        idt[13].set_handler(general_protection_fault_wrapper as u64, 0);
-        idt[14].set_handler(page_fault_wrapper as u64, 0);
-        // 15 is reserved
-        idt[16].set_handler(x87_floating_point_wrapper as u64, 0);
-        idt[17].set_handler(alignment_check_wrapper as u64, 0);
-        idt[18].set_handler(machine_check_wrapper as u64, 0);
-        idt[19].set_handler(simd_floating_point_wrapper as u64, 0);
-        idt[20].set_handler(virtualization_wrapper as u64, 0);
-
-        // Hardware interrupts
-        idt[InterruptIndex::Timer.as_usize()].set_handler(timer_interrupt_wrapper as u64, 0);
-        idt[InterruptIndex::Keyboard.as_usize()].set_handler(keyboard_interrupt_wrapper as u64, 0);
-
-        idt.as_ptr() as u64
-    };
-
+    // Keep the IDT locked during the entire initialization process
+    let mut idt = IDT.lock();
+    
+    // Exception handlers (0-31)
+    idt[0].set_handler(divide_error_wrapper as u64, 0);
+    idt[1].set_handler(debug_wrapper as u64, 0);
+    idt[2].set_handler(nmi_wrapper as u64, 0);
+    idt[3].set_handler(breakpoint_wrapper as u64, 0);
+    idt[4].set_handler(overflow_wrapper as u64, 0);
+    idt[5].set_handler(bound_range_exceeded_wrapper as u64, 0);
+    idt[6].set_handler(invalid_opcode_wrapper as u64, 0);
+    idt[7].set_handler(device_not_available_wrapper as u64, 0);
+    idt[8].set_handler(double_fault_wrapper as u64, gdt::DOUBLE_FAULT_IST_INDEX as u8);
+    // Entry 9 is reserved (Coprocessor Segment Overrun - legacy)
+    idt[10].set_handler(invalid_tss_wrapper as u64, 0);
+    idt[11].set_handler(segment_not_present_wrapper as u64, 0);
+    idt[12].set_handler(stack_segment_fault_wrapper as u64, 0);
+    idt[13].set_handler(general_protection_fault_wrapper as u64, 0);
+    idt[14].set_handler(page_fault_wrapper as u64, 0);
+    // Entry 15 is reserved
+    idt[16].set_handler(x87_floating_point_wrapper as u64, 0);
+    idt[17].set_handler(alignment_check_wrapper as u64, 0);
+    idt[18].set_handler(machine_check_wrapper as u64, 0);
+    idt[19].set_handler(simd_floating_point_wrapper as u64, 0);
+    idt[20].set_handler(virtualization_wrapper as u64, 0);
+    
+    // Hardware interrupts (32+)
+    idt[InterruptIndex::Timer.as_usize()].set_handler(timer_interrupt_wrapper as u64, 0);
+    idt[InterruptIndex::Keyboard.as_usize()].set_handler(keyboard_interrupt_wrapper as u64, 0);
+    
+    // Additional hardware interrupts you might want to add:
+    // idt[InterruptIndex::Mouse.as_usize()].set_handler(mouse_interrupt_wrapper as u64, 0);
+    // idt[InterruptIndex::PrimaryATA.as_usize()].set_handler(primary_ata_wrapper as u64, 0);
+    // idt[InterruptIndex::SecondaryATA.as_usize()].set_handler(secondary_ata_wrapper as u64, 0);
+    
+    // Load the IDT while still holding the lock
     unsafe {
         let idt_ptr = IdtPointer {
             limit: (core::mem::size_of::<[IdtEntry; 256]>() - 1) as u16,
-            base: idt_addr,
+            base: idt.as_ptr() as u64,
         };
+        
+        // Load the IDT register
         core::arch::asm!(
             "lidt [{}]",
             in(reg) &idt_ptr,
             options(readonly, nostack, preserves_flags)
         );
     }
+    
+    // Optional: Enable interrupts after IDT is loaded
+    // unsafe { core::arch::asm!("sti", options(nomem, nostack)); }
+    
+    // Lock is automatically dropped here, after lidt is complete
 }
 
 // Rust interrupt handlers (called from assembly wrappers)
