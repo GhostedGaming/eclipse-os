@@ -1,7 +1,8 @@
+use core::arch::asm;
+
 use lazy_static::lazy_static;
 use spin::Mutex;
 use uart_16550::SerialPort;
-use x86_64::instructions::port::Port;
 
 lazy_static! {
     pub static ref SERIAL1: Mutex<SerialPort> = {
@@ -11,16 +12,44 @@ lazy_static! {
     };
 }
 
+/// Execute a closure without interrupts
+fn without_interrupts<F, R>(f: F) -> R
+where
+    F: FnOnce() -> R,
+{
+    // Save current interrupt flag state
+    let flags: u64;
+    unsafe {
+        core::arch::asm!(
+            "pushfq",
+            "pop {}",
+            out(reg) flags,
+            options(nomem, preserves_flags)
+        );
+    }
+
+    // Disable interrupts
+    unsafe {
+        core::arch::asm!("cli", options(nomem, nostack, preserves_flags));
+    }
+
+    let result = f();
+
+    // Restore interrupt flag if it was previously enabled
+    if flags & 0x200 != 0 {
+        unsafe {
+            core::arch::asm!("sti", options(nomem, nostack, preserves_flags));
+        }
+    }
+
+    result
+}
+
 #[doc(hidden)]
 pub fn _print(args: ::core::fmt::Arguments) {
     use core::fmt::Write;
-    use x86_64::instructions::interrupts;
-
-    interrupts::without_interrupts(|| {
-        SERIAL1
-            .lock()
-            .write_fmt(args)
-            .expect("Printing to serial failed");
+    without_interrupts(|| {
+        SERIAL1.lock().write_fmt(args).expect("Printing to serial failed");
     });
 }
 
@@ -37,8 +66,7 @@ macro_rules! serial_print {
 macro_rules! serial_println {
     () => ($crate::serial_print!("\n"));
     ($fmt:expr) => ($crate::serial_print!(concat!($fmt, "\n")));
-    ($fmt:expr, $($arg:tt)*) => ($crate::serial_print!(
-        concat!($fmt, "\n"), $($arg)*));
+    ($fmt:expr, $($arg:tt)*) => ($crate::serial_print!(concat!($fmt, "\n"), $($arg)*));
 }
 
 /// Logs a message to the serial port with a given log level prefix.
@@ -80,15 +108,39 @@ macro_rules! serial_log_hex {
 
 const SERIAL_PORT: u16 = 0x3F8; // COM1
 
+/// Port I/O functions
+unsafe fn outb(port: u16, value: u8) {
+    unsafe {
+        asm!(
+            "out dx, al",
+            in("dx") port,
+            in("al") value,
+            options(nomem, nostack, preserves_flags)
+        );
+    }
+}
+unsafe fn inb(port: u16) -> u8 {
+    let value: u8;
+    unsafe {    
+        asm!(
+            "in al, dx",
+            out("al") value,
+            in("dx") port,
+            options(nomem, nostack, preserves_flags)
+        );
+    }
+    value
+}
+
 /// Writes a single byte to the serial port.
 ///
 /// Blocks until the port is ready to accept a byte.
 pub fn serial_write_byte(byte: u8) {
     unsafe {
-        let mut line_status = Port::<u8>::new(SERIAL_PORT + 5);
-        while (line_status.read() & 0x20) == 0 {}
-        let mut data = Port::new(SERIAL_PORT);
-        data.write(byte);
+        // Wait for transmit holding register to be empty
+        while (inb(SERIAL_PORT + 5) & 0x20) == 0 {}
+        // Write the byte
+        outb(SERIAL_PORT, byte);
     }
 }
 
@@ -107,10 +159,12 @@ pub fn serial_write_str(s: &str) {
 pub fn serial_write_hex(mut value: u64) {
     let mut buf = [0u8; 16];
     let mut i = buf.len();
+
     if value == 0 {
         serial_write_str("0");
         return;
     }
+
     while value != 0 {
         i -= 1;
         let digit = (value & 0xF) as u8;
@@ -121,6 +175,7 @@ pub fn serial_write_hex(mut value: u64) {
         };
         value >>= 4;
     }
+
     serial_write_str(core::str::from_utf8(&buf[i..]).unwrap());
 }
 

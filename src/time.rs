@@ -1,13 +1,14 @@
-use core::arch::asm;
 use crate::cpu::cpuid;
 use crate::rtc::{self, DateTime};
+use core::arch::asm;
 
 // PIT constants
 const PIT_FREQUENCY: u32 = 1193182; // PIT base frequency in Hz
 const DESIRED_FREQUENCY: u32 = 1000; // 1000 Hz = 1ms per tick
 
-// Timezone configuration - US East Coast
-const LOCAL_TIMEZONE_OFFSET_HOURS: i8 = -5; // EST is UTC-5 (or -4 for EDT during daylight saving)
+// Timezone configuration - US East Coast with DST support
+const EST_OFFSET_HOURS: i8 = -5; // Eastern Standard Time (UTC-5)
+const EDT_OFFSET_HOURS: i8 = -4; // Eastern Daylight Time (UTC-4)
 
 static mut TICKS: u64 = 0;
 static mut CPU_FREQUENCY_HZ: Option<u64> = None;
@@ -25,7 +26,7 @@ pub fn init() {
         unsafe {
             CPU_FREQUENCY_HZ = Some(freq);
         }
-        crate::println!("CPU frequency: {} Hz", freq);
+        // crate::print_message("CPU frequency: {} Hz", freq);
     }
 
     // Read initial time from RTC
@@ -33,7 +34,7 @@ pub fn init() {
     unsafe {
         BOOT_TIME = Some(current_time);
     }
-    crate::println!("System time: {}", current_time);
+    // crate::print_message("System time: {}", current_time);
 
     // Configure PIT for precise timing
     configure_pit_timer();
@@ -66,32 +67,94 @@ fn pit_data_port_ch0(value: u8) {
 fn configure_pit_timer() {
     // Calculate the divisor for the desired frequency
     let divisor = PIT_FREQUENCY / DESIRED_FREQUENCY;
-    
-    crate::println!(
-        "Configuring PIT: base_freq={} Hz, desired_freq={} Hz, divisor={}",
-        PIT_FREQUENCY,
-        DESIRED_FREQUENCY,
-        divisor
-    );
 
-    unsafe {
-        // Command port: Channel 0, Access mode lobyte/hibyte, Mode 2 (rate generator), Binary mode
-        pit_command_port(0x34u8);
+    // crate::print_message(
+    //    "Configuring PIT: base_freq={} Hz, desired_freq={} Hz, divisor={}",
+    //    PIT_FREQUENCY,
+    //    DESIRED_FREQUENCY,
+    //    divisor
+    // );
+    // Command port: Channel 0, Access mode lobyte/hibyte, Mode 2 (rate generator), Binary mode
+    pit_command_port(0x34u8);
 
-        // Send the divisor (low byte first, then high byte)
-        pit_data_port_ch0((divisor & 0xFF) as u8);
-        pit_data_port_ch0((divisor >> 8) as u8);
-    }
+    // Send the divisor (low byte first, then high byte)
+    pit_data_port_ch0((divisor & 0xFF) as u8);
+    pit_data_port_ch0((divisor >> 8) as u8);
 
     unsafe {
         NANOSECONDS_PER_TICK = 1_000_000_000 / DESIRED_FREQUENCY as u64;
     }
 
-    crate::println!(
-        "PIT configured for {} Hz ({} ns per tick)",
-        DESIRED_FREQUENCY,
-        unsafe { NANOSECONDS_PER_TICK }
-    );
+    // crate::print_message(
+    //    "PIT configured for {} Hz ({} ns per tick)",
+    //    DESIRED_FREQUENCY,
+    //    unsafe { NANOSECONDS_PER_TICK }
+    // );
+}
+
+// Function to determine if a date is in daylight saving time
+fn is_daylight_saving_time(datetime: &DateTime) -> bool {
+    // DST in US: Second Sunday in March to First Sunday in November
+
+    // Before March or after November = Standard Time
+    if datetime.month < 3 || datetime.month > 11 {
+        return false;
+    }
+
+    // April through October = Daylight Time
+    if datetime.month > 3 && datetime.month < 11 {
+        return true;
+    }
+
+    // March: DST starts on second Sunday
+    if datetime.month == 3 {
+        let second_sunday = calculate_nth_sunday(2, 3, datetime.year);
+        return datetime.day >= second_sunday;
+    }
+
+    // November: DST ends on first Sunday
+    if datetime.month == 11 {
+        let first_sunday = calculate_nth_sunday(1, 11, datetime.year);
+        return datetime.day < first_sunday;
+    }
+
+    false
+}
+
+// Helper function to calculate the nth Sunday of a month
+fn calculate_nth_sunday(n: u8, month: u8, year: u16) -> u8 {
+    // Find the first day of the month's day of week
+    let first_day_of_week = day_of_week(1, month, year);
+
+    // Calculate days until first Sunday (0 = Sunday)
+    let days_to_first_sunday = if first_day_of_week == 0 {
+        0
+    } else {
+        7 - first_day_of_week
+    };
+
+    // Calculate the nth Sunday
+    1 + days_to_first_sunday + ((n - 1) * 7)
+}
+
+// Helper function to calculate day of week (0 = Sunday, 1 = Monday, etc.)
+fn day_of_week(day: u8, month: u8, year: u16) -> u8 {
+    // Zeller's congruence algorithm
+    let mut m = month as i32;
+    let mut y = year as i32;
+
+    if m < 3 {
+        m += 12;
+        y -= 1;
+    }
+
+    let k = y % 100;
+    let j = y / 100;
+
+    let h = (day as i32 + ((13 * (m + 1)) / 5) + k + (k / 4) + (j / 4) - 2 * j) % 7;
+
+    // Convert to 0=Sunday format
+    ((h + 5) % 7) as u8
 }
 
 pub fn tick() {
@@ -132,18 +195,29 @@ pub fn get_current_time_local() -> DateTime {
     adjust_time_for_timezone(utc_time)
 }
 
-/// Get the timezone offset in hours
+/// Get the current timezone offset in hours (accounts for DST)
 pub fn get_timezone_offset() -> i8 {
-    LOCAL_TIMEZONE_OFFSET_HOURS
+    let utc_time = rtc::get_current_time();
+    if is_daylight_saving_time(&utc_time) {
+        EDT_OFFSET_HOURS
+    } else {
+        EST_OFFSET_HOURS
+    }
 }
 
-/// Simple timezone adjustment (basic implementation)
+/// Simple timezone adjustment with DST support
 fn adjust_time_for_timezone(mut datetime: DateTime) -> DateTime {
-    let mut hour = datetime.hour as i8 + LOCAL_TIMEZONE_OFFSET_HOURS;
+    let offset = if is_daylight_saving_time(&datetime) {
+        EDT_OFFSET_HOURS
+    } else {
+        EST_OFFSET_HOURS
+    };
+
+    let mut hour = datetime.hour as i8 + offset;
     let mut day = datetime.day;
     let mut month = datetime.month;
     let mut year = datetime.year;
-    
+
     // Handle day rollover
     if hour < 0 {
         hour += 24;
@@ -155,7 +229,7 @@ fn adjust_time_for_timezone(mut datetime: DateTime) -> DateTime {
                 month = 12;
                 year -= 1;
             }
-            // Set to last day of previous month (simplified)
+            // Set to last day of previous month
             day = days_in_month(month, year);
         }
     } else if hour >= 24 {
@@ -171,7 +245,7 @@ fn adjust_time_for_timezone(mut datetime: DateTime) -> DateTime {
             }
         }
     }
-    
+
     datetime.hour = hour as u8;
     datetime.day = day;
     datetime.month = month;
@@ -231,7 +305,7 @@ pub fn precise_delay_ns(nanoseconds: f64) {
         let start_tsc = unsafe { core::arch::x86_64::_rdtsc() };
         let cycles_to_wait = (nanoseconds * cpu_freq as f64) / 1_000_000_000.0;
         let target_tsc = start_tsc + cycles_to_wait as u64;
-        
+
         while unsafe { core::arch::x86_64::_rdtsc() } < target_tsc {
             core::hint::spin_loop();
         }
@@ -267,7 +341,7 @@ pub fn read_cmos(register: u8) -> u8 {
             in("al") register,
             options(nomem, nostack)
         );
-        
+
         // Read data from 0x71
         let value: u8;
         asm!(
@@ -290,7 +364,7 @@ pub fn write_cmos(register: u8, value: u8) {
             in("al") register,
             options(nomem, nostack)
         );
-        
+
         // Write data to 0x71
         asm!(
             "out dx, al",
@@ -307,7 +381,7 @@ pub fn get_uptime_string() -> alloc::string::String {
     let hours = uptime_seconds / 3600;
     let minutes = (uptime_seconds % 3600) / 60;
     let seconds = uptime_seconds % 60;
-    
+
     alloc::format!("{}:{:02}:{:02}", hours, minutes, seconds)
 }
 
@@ -334,23 +408,23 @@ impl PerformanceCounter {
         } else {
             None
         };
-        
+
         Self {
             start_ticks: get_ticks(),
             start_tsc,
         }
     }
-    
+
     pub fn elapsed_ms(&self) -> u64 {
         let current_ticks = get_ticks();
         (current_ticks - self.start_ticks) * unsafe { NANOSECONDS_PER_TICK } / 1_000_000
     }
-    
+
     pub fn elapsed_us(&self) -> u64 {
         let current_ticks = get_ticks();
         (current_ticks - self.start_ticks) * unsafe { NANOSECONDS_PER_TICK } / 1_000
     }
-    
+
     pub fn elapsed_ns(&self) -> u64 {
         if let (Some(start_tsc), Some(cpu_freq)) = (self.start_tsc, unsafe { CPU_FREQUENCY_HZ }) {
             let current_tsc = unsafe { core::arch::x86_64::_rdtsc() };

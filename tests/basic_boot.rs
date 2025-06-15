@@ -5,8 +5,7 @@
 #![reexport_test_harness_main = "test_main"]
 
 use core::panic::PanicInfo;
-use eclipse_os::println;
-
+use eclipse_os::uefi_text_buffer::print_message;
 #[unsafe(no_mangle)] // don't mangle the name of this function
 pub extern "C" fn _start() -> ! {
     test_main();
@@ -21,5 +20,5 @@ fn panic(info: &PanicInfo) -> ! {
 
 #[test_case]
 fn test_println() {
-    println!("test_println output");
+    print_message("test_println output");
 }

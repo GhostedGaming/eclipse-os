@@ -68,13 +68,21 @@ impl Executor {
     }
 
     fn sleep_if_idle(&self) {
-        use x86_64::instructions::interrupts::{self, enable_and_hlt};
+        // Disable interrupts
+        unsafe {
+            core::arch::asm!("cli", options(nomem, nostack, preserves_flags));
+        }
 
-        interrupts::disable();
         if self.task_queue.is_empty() {
-            enable_and_hlt();
+            // Enable interrupts and halt
+            unsafe {
+                core::arch::asm!("sti; hlt", options(nomem, nostack, preserves_flags));
+            }
         } else {
-            interrupts::enable();
+            // Just enable interrupts
+            unsafe {
+                core::arch::asm!("sti", options(nomem, nostack, preserves_flags));
+            }
         }
     }
 }

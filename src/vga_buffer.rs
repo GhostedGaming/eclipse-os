@@ -1,3 +1,4 @@
+/*
 use core::fmt;
 use lazy_static::lazy_static;
 use spin::Mutex;
@@ -579,7 +580,7 @@ macro_rules! print {
     }};
 }
 
-/// Like the `println!` macro in the standard library, but prints to the VGA text buffer.
+/// Like the `print_message` macro in the standard library, but prints to the VGA text buffer.
 #[macro_export]
 macro_rules! println {
     () => ($crate::print!("\n"));
@@ -588,13 +589,13 @@ macro_rules! println {
 
 #[test_case]
 fn test_println_simple() {
-    println!("test_println_simple output");
+    print_message("test_println_simple output");
 }
 
 #[test_case]
 fn test_println_many() {
     for _ in 0..200 {
-        println!("test_println_many output");
+        print_message("test_println_many output");
     }
 }
 
@@ -642,3 +643,4 @@ fn test_cursor_movement() {
         assert_eq!(writer.get_cursor_position(), (0, 0));
     });
 }
+ */

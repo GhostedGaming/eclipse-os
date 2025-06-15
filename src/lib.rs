@@ -81,14 +81,14 @@ where
         info("Testable::run: starting test\n");
         serial_print!("{}...\t", core::any::type_name::<T>());
         self();
-        serial_println!("[ok]");
+        serial_print!("[ok]");
         info("Testable::run: finished test\n");
     }
 }
 
 pub fn test_runner(tests: &[&dyn Testable]) {
     info("test_runner: running tests\n");
-    serial_println!("Running {} tests", tests.len());
+    serial_print!("Running {} tests", tests.len());
     for test in tests {
         info("test_runner: running a test\n");
         test.run();
@@ -99,8 +99,8 @@ pub fn test_runner(tests: &[&dyn Testable]) {
 
 pub fn test_panic_handler(panic_info: &PanicInfo) -> ! {
     info("test_panic_handler: panic occurred\n");
-    serial_println!("[failed]\n");
-    serial_println!("Error: {}\n", panic_info);
+    serial_print!("[failed]\n");
+    serial_print!("Error: {}\n", panic_info);
     exit_qemu(QemuExitCode::Failed);
     hlt_loop();
 }

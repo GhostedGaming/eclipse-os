@@ -18,7 +18,7 @@ use eclipse_os::OutputForced;
 use eclipse_os::time;
 use eclipse_os::uefi_text_buffer::print_message;
 // use eclipse_os::vga_buffer::{self, Color};
-use eclipse_os::{TEXT_OUTPUT, print, println};
+use eclipse_os::{TEXT_OUTPUT};
 use uefi::prelude::*;
 
 use core::panic::PanicInfo;
@@ -309,20 +309,20 @@ fn manual_delay(ms: u32) {
 
 fn print_status(component: &str, result: Result<(), ()>) {
     info(&format!("print_status: {component} ...\n"));
-    print!("{} [", component);
+    print_message(&format!("{} [", component));
 
     match result {
         Ok(_) => {
             info("print_status: OK\n");
-            print!("OK");
+            print_message("OK");
         }
         Err(_) => {
             info("print_status: FAIL\n");
-            print!("FAIL");
+            print_message("FAIL");
         }
     }
 
-    print!("]\n");
+    print_message("]\n");
 }
 
 #[allow(clippy::eq_op)]
@@ -340,17 +340,17 @@ fn initiate_time() -> Result<(), ()> {
 fn panic(panic_info: &PanicInfo) -> ! {
     info("panic: Kernel panic occurred!\n");
     
-    print!("KERNEL PANIC: ");
-    print!("{}", panic_info.message());
+    print_message("KERNEL PANIC: ");
+    print_message(&format!("{}", panic_info.message()));
     if let Some(location) = panic_info.location() {
-        print!(" at {}:{}", location.file(), location.line());
+        print_message(&format!(" at {}:{}", location.file(), location.line()));
         info(&format!(
             "panic: at {}:{}\n",
             location.file(),
             location.line()
         ));
     }
-    print!("\n");
+    print_message("\n");
     print_panic_info_serial(panic_info);
     loop {}
 }
@@ -411,9 +411,9 @@ async fn example_task() {
 
 fn print_ascii() {
     info("print_ascii: Printing ASCII art and initializing shell\n");
-    println!("");
-    println!("      --ECLIPSE OS--     ");
-    println!("");
+    print_message("");
+    print_message("      --ECLIPSE OS--     ");
+    print_message("");
     
     eclipse_os::task::keyboard::init_shell();
 }

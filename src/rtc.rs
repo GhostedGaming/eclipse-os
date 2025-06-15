@@ -1,5 +1,5 @@
 use core::fmt;
-use x86_64::instructions::port::Port;
+use core::arch::asm;
 
 #[derive(Debug, Clone, Copy)]
 pub struct DateTime {
@@ -64,10 +64,7 @@ impl fmt::Display for DateTime {
     }
 }
 
-pub struct RTC {
-    cmos_address: Port<u8>,
-    cmos_data: Port<u8>,
-}
+pub struct RTC;
 
 impl Default for RTC {
     fn default() -> Self {
@@ -77,16 +74,45 @@ impl Default for RTC {
 
 impl RTC {
     pub fn new() -> Self {
-        RTC {
-            cmos_address: Port::new(0x70),
-            cmos_data: Port::new(0x71),
+        RTC
+    }
+
+    fn write_cmos_register(&mut self, register: u8, value: u8) {
+        unsafe {
+            asm!(
+                "out dx, al",
+                in("dx") 0x70u16,
+                in("al") register,
+                options(nomem, nostack)
+            );
+            asm!(
+                "out dx, al", 
+                in("dx") 0x71u16,
+                in("al") value,
+                options(nomem, nostack)
+            );
         }
     }
 
     fn read_register(&mut self, register: u8) -> u8 {
         unsafe {
-            self.cmos_address.write(register);
-            self.cmos_data.read()
+            // Write register number to 0x70
+            asm!(
+                "out dx, al",
+                in("dx") 0x70u16,
+                in("al") register,
+                options(nomem, nostack)
+            );
+            
+            // Read data from 0x71
+            let value: u8;
+            asm!(
+                "in al, dx",
+                in("dx") 0x71u16,
+                out("al") value,
+                options(nomem, nostack)
+            );
+            value
         }
     }
 
@@ -161,4 +187,19 @@ pub fn get_current_time_with_tz() -> (DateTime, DateTime, i8) {
     let local_time = crate::time::get_current_time_local();
     let tz_offset = crate::time::get_timezone_offset();
     (utc_time, local_time, tz_offset)
+}
+
+/// Debug function to show timezone information
+pub fn debug_timezone_info() -> alloc::string::String {
+    let (utc_time, local_time, tz_offset) = get_current_time_with_tz();
+    let dst_status = if tz_offset == -4 { "EDT (Daylight)" } else { "EST (Standard)" };
+    
+    alloc::format!(
+        "UTC: {} | Local: {} | Offset: {} ({}) | DST: {}",
+        utc_time.format_time_24h(),
+        local_time.format_time_24h(),
+        tz_offset,
+        dst_status,
+        if tz_offset == -4 { "Active" } else { "Inactive" }
+    )
 }

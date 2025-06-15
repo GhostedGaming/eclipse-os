@@ -1,12 +1,11 @@
-use crate::{intereperter::run, text_editor::express_editor::EDITOR_DATA};
+use crate::{intereperter::run, text_editor::express_editor::EDITOR_DATA, uefi_text_buffer::print_message};
 use alloc::{
     string::{String, ToString},
     vec::Vec,
+    format
 };
 use lazy_static::lazy_static;
 use spin::Mutex;
-
-use crate::println;
 
 lazy_static! {
     static ref ENTRIES: Mutex<Vec<Information>> = Mutex::new(Vec::new());
@@ -31,8 +30,8 @@ pub fn read() {
     let entries = ENTRIES.lock();
     let mut _content: String = "null".to_string();
     for entry in entries.iter() {
-        println!("Name: {}", entry.name);
-        println!("Conent: {}", entry.content);
+        print_message(&format!("Name: {}", entry.name));
+        print_message(&format!("Conent: {}", entry.content));
         _content = entry.content.clone();
     }
 }
@@ -59,6 +58,6 @@ pub fn run() {
 
         run::run_example();
     } else {
-        println!("No code stored to execute.");
+        print_message("No code stored to execute.");
     }
 }
