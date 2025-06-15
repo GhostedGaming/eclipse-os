@@ -4,28 +4,6 @@ use spin::Mutex;
 pub const DOUBLE_FAULT_IST_INDEX: u16 = 0;
 
 #[repr(C, packed)]
-struct GdtEntry {
-    limit_low: u16,
-    base_low: u16,
-    base_middle: u8,
-    access: u8,
-    granularity: u8,
-    base_high: u8,
-}
-
-#[repr(C, packed)]
-struct TssEntry {
-    limit_low: u16,
-    base_low: u16,
-    base_middle: u8,
-    access: u8,
-    granularity: u8,
-    base_high: u8,
-    base_upper: u32,
-    reserved: u32,
-}
-
-#[repr(C, packed)]
 struct GdtPointer {
     limit: u16,
     base: u64,
@@ -60,38 +38,34 @@ static STACK: Mutex<[u8; 4096 * 5]> = Mutex::new([0; 4096 * 5]);
 static TSS: Mutex<TaskStateSegment> = Mutex::new(TaskStateSegment::new());
 static GDT: Mutex<[u64; 8]> = Mutex::new([0; 8]);
 
-impl GdtEntry {
-    const fn new(base: u32, limit: u32, access: u8, flags: u8) -> Self {
-        GdtEntry {
-            limit_low: (limit & 0xFFFF) as u16,
-            base_low: (base & 0xFFFF) as u16,
-            base_middle: ((base >> 16) & 0xFF) as u8,
-            access,
-            granularity: (flags & 0xF0) | (((limit >> 16) & 0x0F) as u8),
-            base_high: ((base >> 24) & 0xFF) as u8,
-        }
-    }
+// Create 64-bit GDT entries directly as u64
+fn create_code_segment() -> u64 {
+    // 64-bit kernel code segment
+    // Base: 0, Limit: 0xFFFFF, Access: 0x9A (present, ring 0, code, readable)
+    // Flags: 0x20 (64-bit, granularity 4KB)
+    0x00AF9A000000FFFF
+}
 
-    const fn kernel_code() -> Self {
-        Self::new(0, 0xFFFFF, 0x9A, 0xA0)
-    }
-
-    const fn kernel_data() -> Self {
-        Self::new(0, 0xFFFFF, 0x92, 0xC0)
-    }
+fn create_data_segment() -> u64 {
+    // 64-bit kernel data segment  
+    // Base: 0, Limit: 0xFFFFF, Access: 0x92 (present, ring 0, data, writable)
+    // Flags: 0x00 (32-bit for data segments in 64-bit mode)
+    0x00CF92000000FFFF
 }
 
 fn create_tss_entry(tss_addr: u64) -> (u64, u64) {
     let base = tss_addr;
     let limit = (mem::size_of::<TaskStateSegment>() - 1) as u64;
     
-    let low = ((base & 0xFFFF) << 16) |
-              (limit & 0xFFFF) |
+    // Low 64 bits of TSS descriptor
+    let low = (limit & 0xFFFF) |
+              ((base & 0xFFFF) << 16) |
               (((base >> 16) & 0xFF) << 32) |
-              (0x89u64 << 40) |
+              (0x89u64 << 40) | // Present, TSS Available
               (((limit >> 16) & 0xF) << 48) |
               (((base >> 24) & 0xFF) << 56);
     
+    // High 64 bits (upper 32 bits of base address)
     let high = base >> 32;
     
     (low, high)
@@ -120,10 +94,10 @@ pub fn init() {
     let gdt_addr = {
         let mut gdt = GDT.lock();
         gdt[0] = 0; // Null descriptor
-        gdt[1] = unsafe { mem::transmute::<GdtEntry, u64>(GdtEntry::kernel_code()) };
-        gdt[2] = unsafe { mem::transmute::<GdtEntry, u64>(GdtEntry::kernel_data()) };
+        gdt[1] = create_code_segment(); // Kernel code segment (selector 0x08)
+        gdt[2] = create_data_segment(); // Kernel data segment (selector 0x10)
         
-        // TSS entry (takes 2 slots)
+        // TSS entry (takes 2 slots) - selectors 0x18 and 0x20
         let (tss_low, tss_high) = create_tss_entry(tss_addr);
         gdt[3] = tss_low;
         gdt[4] = tss_high;
@@ -144,7 +118,7 @@ pub fn init() {
             options(readonly, nostack, preserves_flags)
         );
 
-        // Load code segment - changed label from "1:" to "2:"
+        // Load code segment
         core::arch::asm!(
             "push {sel}",
             "lea {tmp}, [2f + rip]",
@@ -154,6 +128,19 @@ pub fn init() {
             sel = in(reg) 0x08u64, // Code segment selector
             tmp = lateout(reg) _,
             options(preserves_flags)
+        );
+
+        // Load data segment selectors
+        core::arch::asm!(
+            "mov {0}, {1}",
+            "mov ds, {0:x}",
+            "mov es, {0:x}",
+            "mov fs, {0:x}",
+            "mov gs, {0:x}",
+            "mov ss, {0:x}",
+            out(reg) _,
+            in(reg) 0x10u16, // Data segment selector
+            options(nostack, preserves_flags)
         );
 
         // Load TSS
