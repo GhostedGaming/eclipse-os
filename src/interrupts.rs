@@ -145,35 +145,37 @@ impl ChainedPics {
     
     pub unsafe fn initialize(&mut self) {
         // Save masks
-        let mask1 = inb(PIC1_DATA);
-        let mask2 = inb(PIC2_DATA);
+        let mask1 = unsafe { inb(PIC1_DATA) };
+        let mask2 = unsafe { inb(PIC2_DATA) };
         
         // Start initialization
-        outb(PIC1_COMMAND, ICW1_INIT | ICW1_ICW4);
-        outb(PIC2_COMMAND, ICW1_INIT | ICW1_ICW4);
+        unsafe { 
+            outb(PIC1_COMMAND, ICW1_INIT | ICW1_ICW4);
+            outb(PIC2_COMMAND, ICW1_INIT | ICW1_ICW4);
         
-        // Set offsets
-        outb(PIC1_DATA, self.pics[0].offset);
-        outb(PIC2_DATA, self.pics[1].offset);
+            // Set offsets
+            outb(PIC1_DATA, self.pics[0].offset);
+            outb(PIC2_DATA, self.pics[1].offset);
         
-        // Configure chaining
-        outb(PIC1_DATA, 4); // PIC2 at IRQ2
-        outb(PIC2_DATA, 2); // Cascade identity
+            // Configure chaining
+            outb(PIC1_DATA, 4); // PIC2 at IRQ2
+            outb(PIC2_DATA, 2); // Cascade identity
         
-        // Set mode
-        outb(PIC1_DATA, ICW4_8086);
-        outb(PIC2_DATA, ICW4_8086);
+            // Set mode
+            outb(PIC1_DATA, ICW4_8086);
+            outb(PIC2_DATA, ICW4_8086);
         
-        // Restore masks
-        outb(PIC1_DATA, mask1);
-        outb(PIC2_DATA, mask2);
+            // Restore masks
+            outb(PIC1_DATA, mask1);
+            outb(PIC2_DATA, mask2); 
+        }
     }
     
     pub unsafe fn notify_end_of_interrupt(&mut self, interrupt_id: u8) {
         if interrupt_id >= self.pics[1].offset {
-            outb(PIC2_COMMAND, 0x20);
+            unsafe { outb(PIC2_COMMAND, 0x20) };
         }
-        outb(PIC1_COMMAND, 0x20);
+        unsafe { outb(PIC1_COMMAND, 0x20) };
     }
 }
 
@@ -182,36 +184,41 @@ pub static PICS: Mutex<ChainedPics> =
 
 // Port I/O functions
 unsafe fn outb(port: u16, value: u8) {
-    core::arch::asm!(
-        "out dx, al",
-        in("dx") port,
-        in("al") value,
-        options(nomem, nostack, preserves_flags)
-    );
+    unsafe {
+        core::arch::asm!(
+            "out dx, al",
+            in("dx") port,
+            in("al") value,
+            options(nomem, nostack, preserves_flags)
+        );
+    }
 }
 
 unsafe fn inb(port: u16) -> u8 {
     let value: u8;
-    core::arch::asm!(
-        "in al, dx",
-        out("al") value,
-        in("dx") port,
-        options(nomem, nostack, preserves_flags)
-    );
+    unsafe {
+        core::arch::asm!(
+            "in al, dx",
+            out("al") value,
+            in("dx") port,
+            options(nomem, nostack, preserves_flags)
+        );
+    }
     value
 }
 
 // Read CR2 register
 unsafe fn read_cr2() -> u64 {
     let value: u64;
-    core::arch::asm!(
-        "mov {}, cr2",
-        out(reg) value,
-        options(nomem, nostack, preserves_flags)
-    );
+    unsafe {
+        core::arch::asm!(
+            "mov {}, cr2",
+            out(reg) value,
+            options(nomem, nostack, preserves_flags)
+        );
+    }
     value
 }
-
 pub fn init_idt() {
     let idt_addr = {
         let mut idt = IDT.lock();

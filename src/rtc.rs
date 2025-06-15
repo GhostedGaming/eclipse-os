@@ -28,13 +28,39 @@ impl DateTime {
     pub fn format_24h(&self) -> (u8, u8) {
         (self.hour, self.minute)
     }
+
+    /// Format as a full date and time string
+    pub fn format_full(&self) -> alloc::string::String {
+        let (hour, minute, is_pm) = self.format_12h();
+        let ampm = if is_pm { "PM" } else { "AM" };
+        alloc::format!("{:04}-{:02}-{:02} {:02}:{:02}:{:02} {}", 
+            self.year, self.month, self.day, hour, minute, self.second, ampm)
+    }
+
+    /// Format as date only
+    pub fn format_date(&self) -> alloc::string::String {
+        alloc::format!("{:04}-{:02}-{:02}", self.year, self.month, self.day)
+    }
+
+    /// Format as time only (24h)
+    pub fn format_time_24h(&self) -> alloc::string::String {
+        alloc::format!("{:02}:{:02}:{:02}", self.hour, self.minute, self.second)
+    }
+
+    /// Format as time only (12h)
+    pub fn format_time_12h(&self) -> alloc::string::String {
+        let (hour, minute, is_pm) = self.format_12h();
+        let ampm = if is_pm { "PM" } else { "AM" };
+        alloc::format!("{:02}:{:02}:{:02} {}", hour, minute, self.second, ampm)
+    }
 }
 
 impl fmt::Display for DateTime {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let (hour, minute, is_pm) = self.format_12h();
         let ampm = if is_pm { "PM" } else { "AM" };
-        write!(f, "{hour:02}:{minute:02} {ampm}")
+        write!(f, "{:04}-{:02}-{:02} {:02}:{:02}:{:02} {}", 
+            self.year, self.month, self.day, hour, minute, self.second, ampm)
     }
 }
 
@@ -127,4 +153,12 @@ lazy_static! {
 
 pub fn get_current_time() -> DateTime {
     RTC_INSTANCE.lock().read_datetime()
+}
+
+/// Get current time with timezone information
+pub fn get_current_time_with_tz() -> (DateTime, DateTime, i8) {
+    let utc_time = get_current_time();
+    let local_time = crate::time::get_current_time_local();
+    let tz_offset = crate::time::get_timezone_offset();
+    (utc_time, local_time, tz_offset)
 }

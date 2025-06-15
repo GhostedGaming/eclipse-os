@@ -1,7 +1,7 @@
 use alloc::{vec, vec::Vec};
+use core::arch::asm;
 use core::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use spin::Mutex;
-use x86_64::instructions::port::Port;
 
 // PIT (Programmable Interval Timer) constants
 const PIT_FREQUENCY: u32 = 1193182; // More precise base frequency
@@ -109,9 +109,6 @@ impl MusicNote {
 
 /// Advanced PC Speaker Driver
 pub struct PCSpeakerDriver {
-    command_port: Port<u8>,
-    channel2_port: Port<u8>,
-    speaker_port: Port<u8>,
     current_sequence: Vec<MusicNote>,
     sequence_index: usize,
     note_timer: u32,
@@ -127,12 +124,59 @@ impl PCSpeakerDriver {
     /// Create a new PC Speaker driver instance
     pub fn new() -> Self {
         Self {
-            command_port: Port::new(PIT_COMMAND_PORT),
-            channel2_port: Port::new(PIT_CHANNEL2_PORT),
-            speaker_port: Port::new(SPEAKER_CONTROL_PORT),
             current_sequence: Vec::new(),
             sequence_index: 0,
             note_timer: 0,
+        }
+    }
+
+    /// Write to PIT command port
+    fn command_port(&self, value: u8) {
+        unsafe {
+            asm!(
+                "out dx, al",
+                in("dx") PIT_COMMAND_PORT,
+                in("al") value,
+                options(nomem, nostack)
+            );
+        }
+    }
+
+    /// Write to PIT channel 2 port
+    fn channel2_port(&self, value: u8) {
+        unsafe {
+            asm!(
+                "out dx, al",
+                in("dx") PIT_CHANNEL2_PORT,
+                in("al") value,
+                options(nomem, nostack)
+            );
+        }
+    }
+
+    /// Read from speaker control port
+    fn read_speaker_port(&self) -> u8 {
+        unsafe {
+            let value: u8;
+            asm!(
+                "in al, dx",
+                in("dx") SPEAKER_CONTROL_PORT,
+                out("al") value,
+                options(nomem, nostack)
+            );
+            value
+        }
+    }
+
+    /// Write to speaker control port
+    fn write_speaker_port(&self, value: u8) {
+        unsafe {
+            asm!(
+                "out dx, al",
+                in("dx") SPEAKER_CONTROL_PORT,
+                in("al") value,
+                options(nomem, nostack)
+            );
         }
     }
 
@@ -154,33 +198,27 @@ impl PCSpeakerDriver {
         let freq = frequency.clamp(20, 20000);
         let divisor = PIT_FREQUENCY / freq;
 
-        unsafe {
-            // Configure PIT channel 2 for square wave generation
-            self.command_port.write(0b10110110u8);
+        // Configure PIT channel 2 for square wave generation
+        self.command_port(0b10110110u8);
 
-            // Send divisor (low byte first, then high byte)
-            self.channel2_port.write((divisor & 0xFF) as u8);
-            self.channel2_port.write((divisor >> 8) as u8);
-        }
+        // Send divisor (low byte first, then high byte)
+        self.channel2_port((divisor & 0xFF) as u8);
+        self.channel2_port((divisor >> 8) as u8);
 
         CURRENT_FREQUENCY.store(freq, Ordering::SeqCst);
     }
 
     /// Enable the PC speaker
     fn enable_speaker(&mut self) {
-        unsafe {
-            let current = self.speaker_port.read();
-            self.speaker_port.write(current | SPEAKER_ENABLE);
-        }
+        let current = self.read_speaker_port();
+        self.write_speaker_port(current | SPEAKER_ENABLE);
         IS_PLAYING.store(true, Ordering::SeqCst);
     }
 
     /// Disable the PC speaker
     fn disable_speaker(&mut self) {
-        unsafe {
-            let current = self.speaker_port.read();
-            self.speaker_port.write(current & SPEAKER_DISABLE);
-        }
+        let current = self.read_speaker_port();
+        self.write_speaker_port(current & SPEAKER_DISABLE);
         IS_PLAYING.store(false, Ordering::SeqCst);
     }
 
@@ -235,13 +273,17 @@ impl PCSpeakerDriver {
     pub fn play_melody(&mut self, melody: Melody) {
         let sequence = match melody {
             Melody::Startup => vec![
-                MusicNote::new(Note::C4, 2, 1000),
-                MusicNote::new(Note::C5, 2, 500),
+                MusicNote::new(Note::C4, 4, 200),
+                MusicNote::new(Note::E4, 4, 200),
+                MusicNote::new(Note::G4, 4, 200),
+                MusicNote::new(Note::C5, 4, 400),
             ],
             Melody::Error => vec![
-                MusicNote::new(Note::C4, 5, 10),
-                MusicNote::new(Note::C4, 5, 10),
-                MusicNote::new(Note::C4, 5, 10),
+                MusicNote::new(Note::C4, 6, 100),
+                MusicNote::new(Note::Rest, 0, 50),
+                MusicNote::new(Note::C4, 6, 100),
+                MusicNote::new(Note::Rest, 0, 50),
+                MusicNote::new(Note::C4, 6, 100),
             ],
             Melody::Success => vec![
                 MusicNote::new(Note::C4, 4, 150),
@@ -253,61 +295,36 @@ impl PCSpeakerDriver {
                 MusicNote::new(Note::C5, 4, 300),
             ],
             Melody::Warning => vec![
-                MusicNote::new(Note::A4, 4, 300),
+                MusicNote::new(Note::A4, 5, 200),
                 MusicNote::new(Note::Rest, 0, 100),
-                MusicNote::new(Note::A4, 4, 300),
+                MusicNote::new(Note::A4, 5, 200),
             ],
             Melody::PowerOn => vec![
                 MusicNote::new(Note::C4, 3, 100),
-                MusicNote::new(Note::C4, 4, 50),
-                MusicNote::new(Note::C4, 6, 25),
+                MusicNote::new(Note::E4, 3, 100),
+                MusicNote::new(Note::G4, 3, 100),
+                MusicNote::new(Note::C5, 3, 200),
             ],
             Melody::TetrisTheme => vec![
                 // First phrase
-                MusicNote::new(Note::E5, 3, 200),
-                MusicNote::new(Note::B4, 2, 150),
-                MusicNote::new(Note::C5, 3, 150),
-                MusicNote::new(Note::D5, 3, 200),
-                MusicNote::new(Note::C5, 3, 150),
-                MusicNote::new(Note::B4, 2, 150),
-                MusicNote::new(Note::A4, 2, 200),
-                MusicNote::new(Note::A4, 2, 200),
+                MusicNote::new(Note::E5, 4, 200),
+                MusicNote::new(Note::B4, 4, 150),
+                MusicNote::new(Note::C5, 4, 150),
+                MusicNote::new(Note::D5, 4, 200),
+                MusicNote::new(Note::C5, 4, 150),
+                MusicNote::new(Note::B4, 4, 150),
+                MusicNote::new(Note::A4, 4, 200),
+                MusicNote::new(Note::A4, 4, 200),
                 MusicNote::new(Note::Rest, 0, 50),
                 // Second phrase
-                MusicNote::new(Note::C5, 3, 150),
-                MusicNote::new(Note::E5, 3, 200),
-                MusicNote::new(Note::D5, 3, 200),
-                MusicNote::new(Note::C5, 3, 150),
-                MusicNote::new(Note::B4, 2, 150),
-                MusicNote::new(Note::C5, 3, 150),
-                MusicNote::new(Note::D5, 3, 200),
-                MusicNote::new(Note::E5, 3, 200),
-                // Third phrase (slightly higher section)
-                MusicNote::new(Note::B4, 2, 150),
-                MusicNote::new(Note::C5, 3, 150),
-                MusicNote::new(Note::D5, 3, 200),
-                MusicNote::new(Note::E5, 3, 200),
-                MusicNote::new(Note::C5, 3, 150),
-                MusicNote::new(Note::A4, 2, 150),
-                MusicNote::new(Note::A4, 2, 200),
-                MusicNote::new(Note::Rest, 0, 50),
-                // Fourth phrase (ascending part)
-                MusicNote::new(Note::D5, 3, 200),
-                MusicNote::new(Note::F5, 3, 200),
-                MusicNote::new(Note::A5, 3, 200),
-                MusicNote::new(Note::G5, 3, 200),
-                MusicNote::new(Note::F5, 3, 150),
-                MusicNote::new(Note::E5, 3, 150),
-                MusicNote::new(Note::C5, 3, 200),
-                MusicNote::new(Note::E5, 3, 200),
-                // Final phrase (wraps up the main loop)
-                MusicNote::new(Note::D5, 3, 150),
-                MusicNote::new(Note::C5, 3, 150),
-                MusicNote::new(Note::B4, 2, 150),
-                MusicNote::new(Note::C5, 3, 150),
-                MusicNote::new(Note::D5, 3, 200),
-                MusicNote::new(Note::E5, 3, 200),
-                MusicNote::new(Note::Rest, 0, 100),
+                MusicNote::new(Note::C5, 4, 150),
+                MusicNote::new(Note::E5, 4, 200),
+                MusicNote::new(Note::D5, 4, 200),
+                MusicNote::new(Note::C5, 4, 150),
+                MusicNote::new(Note::B4, 4, 150),
+                MusicNote::new(Note::C5, 4, 150),
+                MusicNote::new(Note::D5, 4, 200),
+                MusicNote::new(Note::E5, 4, 200),
             ],
         };
 
@@ -320,29 +337,21 @@ impl PCSpeakerDriver {
             SoundEffect::Click => self.beep(1000, 50),
             SoundEffect::Pop => self.beep(800, 100),
             SoundEffect::Chirp => {
-                // Rising frequency chirp
-                for freq in (400..=800).step_by(50) {
-                    self.play_tone(freq);
-                    // Small delay would go here in real implementation
+                // Create a chirp sequence
+                let mut sequence = Vec::new();
+                for _freq in (400..=800).step_by(50) {
+                    sequence.push(MusicNote::new(Note::Rest, 0, 10)); // Use Rest with custom frequency handling
                 }
-                self.stop_sound();
+                // For now, just do a simple beep
+                self.beep(600, 200);
             }
             SoundEffect::Sweep => {
-                // Frequency sweep
-                for freq in (200..=2000).step_by(100) {
-                    self.play_tone(freq);
-                    use crate::time::delay_ms;
-                    delay_ms(50);
-                }
-                self.stop_sound();
+                // For now, just do a sweep-like beep
+                self.beep(1000, 300);
             }
             SoundEffect::Laser => {
                 // Descending laser sound
-                for freq in (100..=1000).rev().step_by(50) {
-                    self.play_tone(freq);
-                    // Small delay would go here
-                }
-                self.stop_sound();
+                self.beep(1500, 100);
             }
         }
     }
@@ -371,7 +380,9 @@ impl PCSpeakerDriver {
                 self.note_timer = current_note.duration_ms;
             }
 
-            self.note_timer -= 1;
+            if self.note_timer > 0 {
+                self.note_timer -= 1;
+            }
 
             if self.note_timer == 0 {
                 self.sequence_index += 1;
@@ -488,10 +499,11 @@ pub fn emergency_stop() {
 macro_rules! play_notes {
     ($($note:expr, $octave:expr, $duration:expr);* $(;)?) => {
         {
+            use $crate::pc_speaker::MusicNote;
             let sequence = vec![
                 $(MusicNote::new($note, $octave, $duration),)*
             ];
-            with_driver(|d| d.load_sequence(sequence));
+            $crate::pc_speaker::with_driver(|d| d.load_sequence(sequence));
         }
     };
 }
@@ -499,12 +511,38 @@ macro_rules! play_notes {
 #[macro_export]
 macro_rules! quick_beep {
     () => {
-        beep(1000, 100)
+        $crate::pc_speaker::beep(1000, 100)
     };
     ($freq:expr) => {
-        beep($freq, 100)
+        $crate::pc_speaker::beep($freq, 100)
     };
     ($freq:expr, $duration:expr) => {
-        beep($freq, $duration)
+        $crate::pc_speaker::beep($freq, $duration)
     };
+}
+
+/// Test function to verify PC speaker functionality
+pub fn test_pc_speaker() {
+    use crate::serial::info;
+
+    info("Testing PC speaker...\n");
+
+    // Test simple tone
+    info("Playing 1000Hz tone for 500ms\n");
+    beep(1000, 500);
+
+    // Wait for beep to finish
+    while is_playing() {
+        core::hint::spin_loop();
+    }
+
+    info("Playing success melody\n");
+    play_melody(Melody::Success);
+
+    // Wait for melody to finish
+    while is_playing() {
+        core::hint::spin_loop();
+    }
+
+    info("PC speaker test complete\n");
 }
