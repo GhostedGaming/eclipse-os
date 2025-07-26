@@ -1,4 +1,5 @@
 # 🌌 Eclipse OS
+# DISCONTINUED i have since moved a new os to C called binbows
 
 ![Rust](https://img.shields.io/badge/Rust-🦀-orange?style=flat-square)
 ![License](https://img.shields.io/badge/License-Apache_2.0-blue?style=flat-square)
