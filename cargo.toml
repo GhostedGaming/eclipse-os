@@ -1,7 +1,0 @@
-[workspace]
-members = ["kernel"]
-resolver = "2"
-
-[workspace.dependencies]
-x86_64 = "0.15.2"
-limine = "0.5.0"
