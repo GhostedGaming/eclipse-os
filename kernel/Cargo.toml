@@ -1,0 +1,14 @@
+[package]
+name = "eclipse_os"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+limine = { workspace = true}
+x86_64 = { workspace = true}
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
