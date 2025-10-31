@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 limine = { workspace = true}
 x86_64 = { workspace = true}
+uart_16550 = { workspace = true }
 
 [build-dependencies]
 cc = "1.2.43"
