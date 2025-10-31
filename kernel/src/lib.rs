@@ -4,7 +4,12 @@
 
 extern crate alloc;
 
+// Modules
 pub mod gdt;
 pub mod idt;
 pub mod mem;
-pub mod allocator;
+
+// C functions go here
+unsafe extern "C" {
+    
+}

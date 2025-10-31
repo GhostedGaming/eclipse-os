@@ -12,8 +12,6 @@ use limine::request::{FramebufferRequest, MemoryMapRequest, RequestsEndMarker, R
 use eclipse_os::gdt;
 use eclipse_os::idt;
 use eclipse_os::mem::mem;
-use eclipse_os::mem::vmm::{self, get_kernel_pml4};
-use eclipse_os::allocator;
 
 /// Sets the base revision to the latest revision supported by the crate.
 /// See specification for further info.
@@ -49,15 +47,8 @@ unsafe extern "C" fn kmain() -> ! {
         gdt::gdt_init();
         idt::idt_init();
         if let Some(memmap_response) = MEMMAP_REQUEST.get_response() {
-            mem::pmm_init(memmap_response);
+            mem::init_allocator(memmap_response);
         }
-
-        vmm::vmm_init().expect("Failed to init vmm");
-        let pml4 = vmm::get_kernel_pml4() as *mut u8;
-
-        allocator::init_heap(pml4).expect("Failed to init heap");
-
-        let vec = alloc::vec![1, 2, 3, 4, 5];
     }
 
     if let Some(framebuffer_response) = FRAMEBUFFER_REQUEST.get_response() {

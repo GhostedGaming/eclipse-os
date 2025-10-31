@@ -1,3 +1,5 @@
+//! The IDT(Interrupt Descriptor Table) is a data structure usde by the CPU for interrupts handling
+
 use core::ptr::addr_of_mut;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
 
