@@ -1,3 +1,5 @@
+#![no_std]
+
 use core::fmt;
 
 #[repr(C, packed)]
@@ -239,18 +241,18 @@ impl fmt::Write for ScrollingTextRenderer {
 macro_rules! print {
     ($($arg:tt)*) => {{
         use core::fmt::Write;
-        let _ = write!($crate::framebuffer::ScrollingTextRenderer::get(), $($arg)*);
+        let _ = write!($crate::ScrollingTextRenderer::get(), $($arg)*);
     }};
 }
 
 #[macro_export]
 macro_rules! println {
     () => {
-        $crate::framebuffer::ScrollingTextRenderer::get().write_char('\n')
+        $crate::ScrollingTextRenderer::get().write_char('\n')
     };
     ($($arg:tt)*) => {{
         use core::fmt::Write;
-        let _ = write!($crate::framebuffer::ScrollingTextRenderer::get(), $($arg)*);
-        $crate::framebuffer::ScrollingTextRenderer::get().write_char('\n');
+        let _ = write!($crate::ScrollingTextRenderer::get(), $($arg)*);
+        $crate::ScrollingTextRenderer::get().write_char('\n');
     }};
 }

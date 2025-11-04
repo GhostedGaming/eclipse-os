@@ -5,10 +5,13 @@ use core::arch::asm;
 
 use limine::BaseRevision;
 use limine::request::{FramebufferRequest, MemoryMapRequest, RequestsEndMarker, RequestsStartMarker};
+use luminal::Runtime;
 
-use eclipse_os::{gdt, idt, mem::mem, framebuffer::ScrollingTextRenderer, println};
+use eclipse_framebuffer::{ ScrollingTextRenderer, println };
 
-static FONT: &[u8] = include_bytes!("../../Mik_8x16.psf");
+use eclipse_os::{gdt, idt, mem::mem};
+
+static FONT: &[u8] = include_bytes!("../../eclipse_framebuffer/font/Mik_8x16.psf");
 
 #[used]
 #[unsafe(link_section = ".requests")]
@@ -45,16 +48,35 @@ unsafe extern "C" fn kmain() -> ! {
         FONT,
     );
 
-    println!("Initializing GDT");
+    println!("EclipseOS Starting...");
+    
+    println!("Initializing GDT...");
     gdt::gdt_init();
-    println!("GDT Initialized\nInitializing IDT");
+    println!("GDT Initialized");
+    
+    println!("Initializing IDT...");
     idt::idt_init();
     println!("IDT Initialized");
+    
+    println!("Initializing Memory Allocator...");
     if let Some(memmap_response) = MEMMAP_REQUEST.get_response() {
         mem::init_allocator(memmap_response);
+        println!("Memory Allocator Initialized");
+    } else {
+        println!("WARNING: No memory map available!");
     }
 
-    println!("System Booted!");
+    println!("Initializing Luminal Runtime...");
+    match Runtime::new() {
+        Ok(_runtime) => {
+            println!("Luminal runtime initialized successfully");
+        }
+        Err(_e) => {
+            println!("WARNING: Luminal failed to start");
+        }
+    }
+
+    println!("System Booted Successfully!");
 
     hcf();
 }

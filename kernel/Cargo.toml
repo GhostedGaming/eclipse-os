@@ -7,6 +7,8 @@ edition = "2021"
 limine = { workspace = true}
 x86_64 = { workspace = true}
 uart_16550 = { workspace = true }
+luminal_rt = { workspace = true }
+eclipse_framebuffer = { workspace = true }
 spin = "0.10.0"
 
 [dependencies.lazy_static]

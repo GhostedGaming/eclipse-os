@@ -8,8 +8,8 @@ extern crate alloc;
 pub mod gdt;
 pub mod idt;
 pub mod mem;
+pub mod drivers;
 pub mod commands;
-pub mod framebuffer;
 
 // C functions go here
 unsafe extern "C" {
