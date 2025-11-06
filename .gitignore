@@ -1,4 +1,7 @@
+/limine
+/ovmf
 /target
-**/*.rs.bk
-
-.vscode
+/kernel/target
+*.iso
+*.hdd
+*.img
