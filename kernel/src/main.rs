@@ -3,12 +3,12 @@
 
 use core::arch::asm;
 
+// External crates
 use limine::BaseRevision;
 use limine::request::{FramebufferRequest, MemoryMapRequest, RequestsEndMarker, RequestsStartMarker};
-use luminal::Runtime;
 
+// Eclipse crates
 use eclipse_framebuffer::{ ScrollingTextRenderer, println };
-
 use eclipse_os::{gdt, idt, mem::mem};
 
 static FONT: &[u8] = include_bytes!("../../eclipse_framebuffer/font/Mik_8x16.psf");
@@ -60,20 +60,11 @@ unsafe extern "C" fn kmain() -> ! {
     
     println!("Initializing Memory Allocator...");
     if let Some(memmap_response) = MEMMAP_REQUEST.get_response() {
+        mem::VMM::init(memmap_response);
         mem::init_allocator(memmap_response);
         println!("Memory Allocator Initialized");
     } else {
         println!("WARNING: No memory map available!");
-    }
-
-    println!("Initializing Luminal Runtime...");
-    match Runtime::new() {
-        Ok(_runtime) => {
-            println!("Luminal runtime initialized successfully");
-        }
-        Err(_e) => {
-            println!("WARNING: Luminal failed to start");
-        }
     }
 
     println!("System Booted Successfully!");
