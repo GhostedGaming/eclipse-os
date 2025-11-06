@@ -1,6 +1,15 @@
 [package]
 name = "eclipse_framebuffer"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
+authors = ["GhostedGaming <epicrobloxgamer41@gmail.com>"]
+description = "A lightweight no_std framebuffer text renderer with scrolling support for bare-metal Rust and the Limine bootloader"
+license = "MIT"
+repository = "https://github.com/GhostedGaming/eclipse-os"
+documentation = "https://docs.rs/eclipse_framebuffer"
+homepage = "https://github.com/GhostedGaming/eclipse-os"
+readme = "README.md"
+keywords = ["no-std", "framebuffer", "limine", "osdev", "bare-metal"]
+categories = ["no-std", "os", "embedded"]
 
 [dependencies]

@@ -1,0 +1,8 @@
+[package]
+name = "eclipse_ide"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+eclipse_x86_64_commands = { workspace = true}
+eclipse_framebuffer = { workspace = true }

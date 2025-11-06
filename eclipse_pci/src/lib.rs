@@ -2,7 +2,9 @@
 //! What is PCI? PCI (Peripheral Component Interconnect) is a local bus used to connect
 //! hardware to a computers motherboard 
 
-use crate::{outl, inl};
+extern crate alloc;
+
+use eclipse_x86_64_commands::{outl, inl};
 use eclipse_framebuffer::println;
 use alloc::boxed::Box;
 
@@ -77,10 +79,8 @@ pub async fn pci_config_read_dword(bus: u8, device: u8, function: u8, offset: u8
         | ((offset as u32) & 0xFC) 
         | 0x80000000;
     
-    unsafe {
-        outl!(PCI_CONFIG_ADDRESS, address);
-        inl!(PCI_CONFIG_DATA)
-    }
+    outl!(PCI_CONFIG_ADDRESS, address);
+    inl!(PCI_CONFIG_DATA)
 }
 
 pub async fn pci_config_write_dword(bus: u8, device: u8, function: u8, offset: u8, value: u32) {
@@ -90,10 +90,8 @@ pub async fn pci_config_write_dword(bus: u8, device: u8, function: u8, offset: u
         | ((offset as u32) & 0xFC) 
         | 0x80000000;
     
-    unsafe {
-        outl!(PCI_CONFIG_ADDRESS, address);
-        outl!(PCI_CONFIG_DATA, value);
-    }
+    outl!(PCI_CONFIG_ADDRESS, address);
+    outl!(PCI_CONFIG_DATA, value);
 }
 
 pub async fn pci_config_read_word(bus: u8, device: u8, function: u8, offset: u8) -> u16 {

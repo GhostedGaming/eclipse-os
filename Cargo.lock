@@ -31,8 +31,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "eclipse_framebuffer"
+name = "eclipse_ahci"
 version = "0.1.0"
+
+[[package]]
+name = "eclipse_framebuffer"
+version = "0.1.1"
+
+[[package]]
+name = "eclipse_ide"
+version = "0.1.0"
+dependencies = [
+ "eclipse_framebuffer",
+ "eclipse_x86_64_commands",
+]
 
 [[package]]
 name = "eclipse_os"
@@ -46,6 +58,18 @@ dependencies = [
  "uart_16550",
  "x86_64",
 ]
+
+[[package]]
+name = "eclipse_pci"
+version = "0.1.0"
+dependencies = [
+ "eclipse_framebuffer",
+ "eclipse_x86_64_commands",
+]
+
+[[package]]
+name = "eclipse_x86_64_commands"
+version = "0.1.0"
 
 [[package]]
 name = "find-msvc-tools"
