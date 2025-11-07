@@ -41,6 +41,9 @@ version = "0.1.1"
 [[package]]
 name = "eclipse_fs"
 version = "0.1.0"
+dependencies = [
+ "eclipse_ide",
+]
 
 [[package]]
 name = "eclipse_ide"

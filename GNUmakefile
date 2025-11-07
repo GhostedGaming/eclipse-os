@@ -38,6 +38,16 @@ run-x86_64: ovmf/ovmf-code-$(KARCH).fd ovmf/ovmf-vars-$(KARCH).fd $(IMAGE_NAME).
 	    -drive file=ide_disk.img,format=raw,if=ide,index=0,media=disk \
 	    $(QEMUFLAGS)
 
+.PHONY: run-codespace-x86_64
+run-codespace-x86_64: ovmf/ovmf-code-$(KARCH).fd ovmf/ovmf-vars-$(KARCH).fd $(IMAGE_NAME).iso ide_disk.img
+	qemu-system-$(KARCH) \
+	    -M pc \
+	    -drive if=pflash,unit=0,format=raw,file=ovmf/ovmf-code-$(KARCH).fd,readonly=on \
+	    -drive if=pflash,unit=1,format=raw,file=ovmf/ovmf-vars-$(KARCH).fd \
+	    -cdrom $(IMAGE_NAME).iso \
+	    -drive file=ide_disk.img,format=raw,if=ide,index=0,media=disk \
+	    $(QEMUFLAGS) -display curses
+
 .PHONY: run-hdd-x86_64
 run-hdd-x86_64: ovmf/ovmf-code-$(KARCH).fd ovmf/ovmf-vars-$(KARCH).fd $(IMAGE_NAME).hdd
 	qemu-system-$(KARCH) \

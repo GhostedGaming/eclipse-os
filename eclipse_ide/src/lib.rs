@@ -3,7 +3,9 @@
 //! In 1986 Western Digital and Compaq created a new drive
 //! Called the ata drive which replaced old storage devices
 //! It was also known as IDE
+extern crate alloc;
 
+use alloc::vec::Vec;
 use eclipse_framebuffer::println;
 use eclipse_x86_64_commands::*;
 use spin::Mutex;
@@ -103,7 +105,7 @@ static mut IDE_IRQ_INVOKED: u8 = 0;
 
 #[repr(C)]
 #[derive(Clone, Copy)]
-struct IdeDevice {
+pub struct IdeDevice {
     reserved: u8,
     channel: u8,
     drive: u8,
@@ -111,11 +113,11 @@ struct IdeDevice {
     signature: u16,
     capabilities: u16,
     command_sets: u32,
-    size: u32,
-    model: [u8; 41],
+    pub size: u32,
+    pub model: [u8; 41],
 }
 
-static mut IDE_DEVICES: [IdeDevice; 4] = [
+pub static mut IDE_DEVICES: [IdeDevice; 4] = [
     IdeDevice { reserved: 0, channel: 0, drive: 0, device_type: 0, signature: 0, capabilities: 0, command_sets: 0, size: 0, model: [0; 41] },
     IdeDevice { reserved: 0, channel: 0, drive: 0, device_type: 0, signature: 0, capabilities: 0, command_sets: 0, size: 0, model: [0; 41] },
     IdeDevice { reserved: 0, channel: 0, drive: 0, device_type: 0, signature: 0, capabilities: 0, command_sets: 0, size: 0, model: [0; 41] },
@@ -274,7 +276,7 @@ fn ide_print_error(drive: usize, mut err: u8) -> u8 {
     err
 }
 
-pub fn ide_read_sectors(drive: usize, lba: u32, sectors: u8, buffer: *mut u8) -> u8 {
+pub fn ide_read_sectors(drive: usize, lba: u32, num_sectors: u8, buffer: &mut Vec<u8>) -> u8 {
     unsafe {
         let dev = &IDE_DEVICES[drive];
         if dev.reserved == 0 { return 1; }
@@ -282,24 +284,29 @@ pub fn ide_read_sectors(drive: usize, lba: u32, sectors: u8, buffer: *mut u8) ->
         let channel = dev.channel;
         let drive_bit = dev.drive;
 
+        // Resize buffer to hold exactly num_sectors * 512 bytes
+        buffer.resize(num_sectors as usize * 512, 0);
+
+        // Wait until not busy
         while (ide_read(channel, ATA_REG_STATUS) & ATA_SR_BSY) != 0 {}
 
-        ide_write(channel, ATA_REG_HDDEVSEL, 0xE0 | ((drive_bit as u8) << 4) | ((lba >> 24) & 0x0F) as u8);
-        ide_write(channel, ATA_REG_SECCOUNT0, sectors);
+        ide_write(channel, ATA_REG_HDDEVSEL, 
+            0xE0 | ((drive_bit as u8) << 4) | ((lba >> 24) & 0x0F) as u8);
+        ide_write(channel, ATA_REG_SECCOUNT0, num_sectors);
         ide_write(channel, ATA_REG_LBA0, (lba & 0xFF) as u8);
         ide_write(channel, ATA_REG_LBA1, ((lba >> 8) & 0xFF) as u8);
         ide_write(channel, ATA_REG_LBA2, ((lba >> 16) & 0xFF) as u8);
         ide_write(channel, ATA_REG_COMMAND, ATA_CMD_READ_PIO);
 
-        for s in 0..sectors {
+        for s in 0..num_sectors {
             let err = ide_wait_irq(channel);
             if err != 0 { return ide_print_error(drive, err); }
-            
+
             for i in 0..256 {
                 let data: u16 = inw!(CHANNELS[channel as usize].base);
-                let ptr = buffer.add((s as usize) * 512 + (i * 2));
-                *ptr = (data & 0xFF) as u8;
-                *ptr.add(1) = (data >> 8) as u8;
+                let offset = (s as usize) * 512 + (i * 2);
+                buffer[offset] = (data & 0xFF) as u8;
+                buffer[offset + 1] = (data >> 8) as u8;
             }
         }
 
@@ -307,7 +314,7 @@ pub fn ide_read_sectors(drive: usize, lba: u32, sectors: u8, buffer: *mut u8) ->
     }
 }
 
-pub fn ide_write_sectors(drive: usize, lba: u32, sectors: u8, buffer: *const u8) -> u8 {
+pub fn ide_write_sectors(drive: usize, lba: u32, buffer: &[u8]) -> u8 {
     unsafe {
         let dev = &IDE_DEVICES[drive];
         if dev.reserved == 0 { return 1; }
@@ -315,9 +322,17 @@ pub fn ide_write_sectors(drive: usize, lba: u32, sectors: u8, buffer: *const u8)
         let channel = dev.channel;
         let drive_bit = dev.drive;
 
+        // Calculate number of sectors needed (round up)
+        let sectors = ((buffer.len() + 511) / 512) as u8;
+        
+        // Create a temporary padded buffer with exact sector alignment
+        let mut temp_buffer: Vec<u8> = buffer.to_vec();
+        temp_buffer.resize(sectors as usize * 512, 0);
+
         while (ide_read(channel, ATA_REG_STATUS) & ATA_SR_BSY) != 0 {}
 
-        ide_write(channel, ATA_REG_HDDEVSEL, 0xE0 | ((drive_bit as u8) << 4) | ((lba >> 24) & 0x0F) as u8);
+        ide_write(channel, ATA_REG_HDDEVSEL, 
+            0xE0 | ((drive_bit as u8) << 4) | ((lba >> 24) & 0x0F) as u8);
         ide_write(channel, ATA_REG_SECCOUNT0, sectors);
         ide_write(channel, ATA_REG_LBA0, (lba & 0xFF) as u8);
         ide_write(channel, ATA_REG_LBA1, ((lba >> 8) & 0xFF) as u8);
@@ -329,8 +344,9 @@ pub fn ide_write_sectors(drive: usize, lba: u32, sectors: u8, buffer: *const u8)
             if err != 0 { return ide_print_error(drive, err); }
 
             for i in 0..256 {
-                let lo = *buffer.add((s as usize) * 512 + (i * 2)) as u16;
-                let hi = *buffer.add((s as usize) * 512 + (i * 2) + 1) as u16;
+                let offset = (s as usize) * 512 + (i * 2);
+                let lo = temp_buffer[offset] as u16;
+                let hi = temp_buffer[offset + 1] as u16;
                 outw!(CHANNELS[channel as usize].base, lo | (hi << 8));
             }
         }

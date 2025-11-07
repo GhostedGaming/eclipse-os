@@ -5,7 +5,7 @@ crate::version::Version {
         crate::date::Date {
             year: 2025,
             month: 11,
-            day: 4,
+            day: 6,
         },
     ),
 }
