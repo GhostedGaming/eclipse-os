@@ -1,42 +1,59 @@
-//! The IDT(Interrupt Descriptor Table) is a data structure usde by the CPU for interrupts handling
+//! The IDT(Interrupt Descriptor Table) is a data structure used by the CPU for interrupts handling
 
 use core::ptr::addr_of_mut;
+use eclipse_framebuffer::print;
+use pic8259::ChainedPics;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
+use spin::Mutex;
+use eclipse_ide::ide_irq_handler;
 
 static mut IDT: InterruptDescriptorTable = InterruptDescriptorTable::new();
+pub const PIC_1_OFFSET: u8 = 32;
+pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
+pub static PICS: Mutex<ChainedPics> =
+    spin::Mutex::new(unsafe { ChainedPics::new(PIC_1_OFFSET, PIC_2_OFFSET) });
 
 pub unsafe fn idt_init() {
-    unsafe {
-        let idt = &mut *addr_of_mut!(IDT);
-        
-        // CPU Exceptions (0-31)
-        idt.divide_error.set_handler_fn(divide_error_handler);
-        idt.debug.set_handler_fn(debug_handler);
-        idt.non_maskable_interrupt.set_handler_fn(nmi_handler);
-        idt.breakpoint.set_handler_fn(breakpoint_handler);
-        idt.overflow.set_handler_fn(overflow_handler);
-        idt.bound_range_exceeded.set_handler_fn(bound_range_handler);
-        idt.invalid_opcode.set_handler_fn(invalid_opcode_handler);
-        idt.device_not_available.set_handler_fn(device_not_available_handler);
-        idt.double_fault.set_handler_fn(double_fault_handler);
-        idt.invalid_tss.set_handler_fn(invalid_tss_handler);
-        idt.segment_not_present.set_handler_fn(segment_not_present_handler);
-        idt.stack_segment_fault.set_handler_fn(stack_segment_fault_handler);
-        idt.general_protection_fault.set_handler_fn(general_protection_fault_handler);
-        idt.page_fault.set_handler_fn(page_fault_handler);
-        idt.x87_floating_point.set_handler_fn(x87_floating_point_handler);
-        idt.alignment_check.set_handler_fn(alignment_check_handler);
-        idt.machine_check.set_handler_fn(machine_check_handler);
-        idt.simd_floating_point.set_handler_fn(simd_floating_point_handler);
-        idt.virtualization.set_handler_fn(virtualization_handler);
-        idt.security_exception.set_handler_fn(security_exception_handler);
+    let idt = &mut *addr_of_mut!(IDT);
+    
+    idt.divide_error.set_handler_fn(divide_error_handler);
+    idt.debug.set_handler_fn(debug_handler);
+    idt.non_maskable_interrupt.set_handler_fn(nmi_handler);
+    idt.breakpoint.set_handler_fn(breakpoint_handler);
+    idt.overflow.set_handler_fn(overflow_handler);
+    idt.bound_range_exceeded.set_handler_fn(bound_range_handler);
+    idt.invalid_opcode.set_handler_fn(invalid_opcode_handler);
+    idt.device_not_available.set_handler_fn(device_not_available_handler);
+    idt.double_fault.set_handler_fn(double_fault_handler);
+    idt.invalid_tss.set_handler_fn(invalid_tss_handler);
+    idt.segment_not_present.set_handler_fn(segment_not_present_handler);
+    idt.stack_segment_fault.set_handler_fn(stack_segment_fault_handler);
+    idt.general_protection_fault.set_handler_fn(general_protection_fault_handler);
+    idt.page_fault.set_handler_fn(page_fault_handler);
+    idt.x87_floating_point.set_handler_fn(x87_floating_point_handler);
+    idt.alignment_check.set_handler_fn(alignment_check_handler);
+    idt.machine_check.set_handler_fn(machine_check_handler);
+    idt.simd_floating_point.set_handler_fn(simd_floating_point_handler);
+    idt.virtualization.set_handler_fn(virtualization_handler);
+    idt.security_exception.set_handler_fn(security_exception_handler);
 
-        // Load the IDT
-        idt.load();
-    }
+    let mut pics = PICS.lock();
+    pics.initialize();
+
+    let mut masks = pics.read_masks();
+    masks[0] &= !(1 << 0);
+    masks[1] &= !(1 << 6);
+    masks[1] &= !(1 << 7);
+    pics.write_masks(masks[0], masks[1]);
+    drop(pics);
+
+    idt[PIC_1_OFFSET].set_handler_fn(timer_handler);
+    idt[PIC_2_OFFSET + 6].set_handler_fn(ide_primary_handler);
+    idt[PIC_2_OFFSET + 7].set_handler_fn(ide_secondary_handler);
+
+    idt.load();
 }
 
-// Exception Handlers
 extern "x86-interrupt" fn divide_error_handler(stack_frame: InterruptStackFrame) {
     panic!("EXCEPTION: DIVIDE ERROR\n{:#?}", stack_frame);
 }
@@ -142,4 +159,19 @@ extern "x86-interrupt" fn security_exception_handler(
     error_code: u64,
 ) {
     panic!("EXCEPTION: SECURITY EXCEPTION\nError Code: {}\n{:#?}", error_code, stack_frame);
+}
+
+extern "x86-interrupt" fn timer_handler(_stack_frame: InterruptStackFrame) {
+    print!(".");
+    unsafe { PICS.lock().notify_end_of_interrupt(PIC_1_OFFSET); }
+}
+
+extern "x86-interrupt" fn ide_primary_handler(_stack_frame: InterruptStackFrame) {
+    ide_irq_handler();
+    unsafe { PICS.lock().notify_end_of_interrupt(PIC_2_OFFSET + 6); }
+}
+
+extern "x86-interrupt" fn ide_secondary_handler(_stack_frame: InterruptStackFrame) {
+    ide_irq_handler();
+    unsafe { PICS.lock().notify_end_of_interrupt(PIC_2_OFFSET + 7); }
 }

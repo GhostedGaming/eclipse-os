@@ -25,14 +25,18 @@ run: run-$(KARCH)
 .PHONY: run-hdd
 run-hdd: run-hdd-$(KARCH)
 
+ide_disk.img:
+	qemu-img create -f raw ide_disk.img 512M
+
 .PHONY: run-x86_64
-run-x86_64: ovmf/ovmf-code-$(KARCH).fd ovmf/ovmf-vars-$(KARCH).fd $(IMAGE_NAME).iso
+run-x86_64: ovmf/ovmf-code-$(KARCH).fd ovmf/ovmf-vars-$(KARCH).fd $(IMAGE_NAME).iso ide_disk.img
 	qemu-system-$(KARCH) \
-		-M q35 \
-		-drive if=pflash,unit=0,format=raw,file=ovmf/ovmf-code-$(KARCH).fd,readonly=on \
-		-drive if=pflash,unit=1,format=raw,file=ovmf/ovmf-vars-$(KARCH).fd \
-		-cdrom $(IMAGE_NAME).iso \
-		$(QEMUFLAGS)
+	    -M pc \
+	    -drive if=pflash,unit=0,format=raw,file=ovmf/ovmf-code-$(KARCH).fd,readonly=on \
+	    -drive if=pflash,unit=1,format=raw,file=ovmf/ovmf-vars-$(KARCH).fd \
+	    -cdrom $(IMAGE_NAME).iso \
+	    -drive file=ide_disk.img,format=raw,if=ide,index=0,media=disk \
+	    $(QEMUFLAGS)
 
 .PHONY: run-hdd-x86_64
 run-hdd-x86_64: ovmf/ovmf-code-$(KARCH).fd ovmf/ovmf-vars-$(KARCH).fd $(IMAGE_NAME).hdd
@@ -166,14 +170,6 @@ limine/limine:
 	git clone https://github.com/limine-bootloader/limine.git --branch=v9.x-binary --depth=1
 	$(MAKE) -C limine
 
-# EclipseOS-specific targets
-.PHONY: userspace
-userspace:
-	@echo "Building EclipseOS userspace compositor..."
-	cd userspace/compositor && cargo build --release
-	@echo "Building demo applications..."
-	cd userspace/apps/demo && cargo build --release
-
 .PHONY: kernel
 kernel:
 	@echo "Building EclipseOS kernel..."
@@ -194,118 +190,6 @@ setup:
 	@echo "Installing required tools..."
 	rustup component add rust-src
 	rustup component add llvm-tools-preview
-
-# Test targets
-.PHONY: test
-test:
-	@echo "Running EclipseOS tests..."
-	cd kernel && cargo test --lib --target x86_64-unknown-linux-gnu
-	cd userspace/compositor && cargo test
-	cd userspace/apps/demo && cargo test
-
-.PHONY: test-kernel
-test-kernel:
-	@echo "Running kernel tests..."
-	cd kernel && cargo test --lib --target x86_64-unknown-linux-gnu
-
-# Development utilities
-.PHONY: fmt
-fmt:
-	@echo "Formatting EclipseOS code..."
-	cd kernel && cargo fmt
-	cd userspace/compositor && cargo fmt
-	cd userspace/apps/demo && cargo fmt
-
-.PHONY: lint
-lint:
-	@echo "Linting EclipseOS code..."
-	cd kernel && cargo clippy --target x86_64-unknown-none
-	cd userspace/compositor && cargo clippy
-	cd userspace/apps/demo && cargo clippy
-
-.PHONY: docs
-docs:
-	@echo "Generating EclipseOS documentation..."
-	cd kernel && cargo doc --no-deps --target x86_64-unknown-none
-	cd userspace/compositor && cargo doc --no-deps
-	cd userspace/apps/demo && cargo doc --no-deps
-
-.PHONY: bench
-bench:
-	@echo "Running EclipseOS benchmarks..."
-	cd kernel && cargo bench --target x86_64-unknown-linux-gnu
-
-.PHONY: audit
-audit:
-	@echo "Auditing EclipseOS dependencies..."
-	cd kernel && cargo audit
-	cd userspace/compositor && cargo audit
-
-# Debug with GDB
-.PHONY: debug-gdb
-debug-gdb: kernel-debug $(IMAGE_NAME).iso
-	@echo "Starting EclipseOS debug session with GDB..."
-	qemu-system-$(KARCH) \
-		-M q35 \
-		-cdrom $(IMAGE_NAME).iso \
-		-m 2G \
-		-smp 4 \
-		-vga std \
-		-serial stdio \
-		-s -S &
-	gdb -ex "target remote :1234" \
-		-ex "symbol-file kernel/target/x86_64-unknown-none/debug/kernel"
-
-# Enhanced run targets for EclipseOS
-.PHONY: run-elcipse
-run-elcipse: $(IMAGE_NAME).iso
-	@echo "Starting EclipseOS..."
-	qemu-system-$(KARCH) \
-		-M q35 \
-		-cdrom $(IMAGE_NAME).iso \
-		-m 2G \
-		-smp 4 \
-		-vga std \
-		-serial stdio \
-		-no-reboot \
-		-no-shutdown \
-		-netdev user,id=net0 \
-		-device e1000,netdev=net0 \
-		$(QEMUFLAGS)
-
-# Build everything including userspace
-.PHONY: all-elcipse
-all-elcipse: kernel userspace $(IMAGE_NAME).iso
-
-# Help target
-.PHONY: help
-help:
-	@echo "EclipseOS Build System"
-	@echo ""
-	@echo "Build targets:"
-	@echo "  all           - Build kernel and create ISO"
-	@echo "  all-elcipse    - Build kernel, userspace, and create ISO"  
-	@echo "  kernel        - Build kernel only"
-	@echo "  userspace     - Build userspace compositor and apps"
-	@echo "  kernel-debug  - Build kernel with debug symbols"
-	@echo ""
-	@echo "Run targets:"
-	@echo "  run           - Run with UEFI firmware"
-	@echo "  run-elcipse    - Run EclipseOS with enhanced QEMU settings"
-	@echo "  run-bios      - Run with legacy BIOS"
-	@echo "  debug-gdb     - Start debug session with GDB"
-	@echo ""
-	@echo "Development targets:"
-	@echo "  test          - Run all tests"
-	@echo "  fmt           - Format all code"
-	@echo "  lint          - Lint all code"  
-	@echo "  docs          - Generate documentation"
-	@echo "  bench         - Run benchmarks"
-	@echo "  audit         - Security audit dependencies"
-	@echo "  setup         - Setup development environment"
-	@echo ""
-	@echo "Architecture support: x86_64 (default), aarch64, riscv64, loongarch64"
-	@echo "Set KARCH=<arch> to build for different architecture"
 
 $(IMAGE_NAME).iso: limine/limine kernel
 	rm -rf iso_root
@@ -381,8 +265,6 @@ endif
 clean:
 	@echo "Cleaning EclipseOS build artifacts..."
 	$(MAKE) -C kernel clean
-	cd userspace/compositor && cargo clean
-	cd userspace/apps/demo && cargo clean
 	rm -rf iso_root $(IMAGE_NAME).iso $(IMAGE_NAME).hdd
 
 .PHONY: distclean

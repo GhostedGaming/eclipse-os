@@ -1,6 +1,7 @@
 //! This file defines all of the PCI functions
 //! What is PCI? PCI (Peripheral Component Interconnect) is a local bus used to connect
 //! hardware to a computers motherboard 
+#![no_std]
 
 extern crate alloc;
 
