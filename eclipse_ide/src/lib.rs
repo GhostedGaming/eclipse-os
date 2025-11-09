@@ -6,6 +6,8 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
+use core::slice;
+use core::mem::size_of_val;
 use eclipse_framebuffer::println;
 use eclipse_x86_64_commands::*;
 use spin::Mutex;
@@ -100,7 +102,7 @@ static mut CHANNELS: [IDEChannelRegisters; 2] = [
     IDEChannelRegisters { base: 0, ctrl: 0, bmide: 0, nien: 0 },
 ];
 
-static IDE_BUF: Mutex<[u8; 2048]> = Mutex::new([0; 2048]);
+static mut IDE_BUF: [u8; 512] = [0; 512];
 static mut IDE_IRQ_INVOKED: u8 = 0;
 
 #[repr(C)]
@@ -276,32 +278,31 @@ fn ide_print_error(drive: usize, mut err: u8) -> u8 {
     err
 }
 
-pub fn ide_read_sectors(drive: usize, lba: u32, num_sectors: u8, buffer: &mut Vec<u8>) -> u8 {
+pub fn ide_read_sectors(drive: usize, lba: u32, buffer: &mut Vec<u8>) -> u8 {
     unsafe {
         let dev = &IDE_DEVICES[drive];
         if dev.reserved == 0 { return 1; }
-
         let channel = dev.channel;
         let drive_bit = dev.drive;
 
-        // Resize buffer to hold exactly num_sectors * 512 bytes
+        let num_sectors = buffer.len() / 512;
+        
         buffer.resize(num_sectors as usize * 512, 0);
-
-        // Wait until not busy
+        
         while (ide_read(channel, ATA_REG_STATUS) & ATA_SR_BSY) != 0 {}
-
+        
         ide_write(channel, ATA_REG_HDDEVSEL, 
             0xE0 | ((drive_bit as u8) << 4) | ((lba >> 24) & 0x0F) as u8);
-        ide_write(channel, ATA_REG_SECCOUNT0, num_sectors);
+        ide_write(channel, ATA_REG_SECCOUNT0, num_sectors as u8);
         ide_write(channel, ATA_REG_LBA0, (lba & 0xFF) as u8);
         ide_write(channel, ATA_REG_LBA1, ((lba >> 8) & 0xFF) as u8);
         ide_write(channel, ATA_REG_LBA2, ((lba >> 16) & 0xFF) as u8);
         ide_write(channel, ATA_REG_COMMAND, ATA_CMD_READ_PIO);
-
+        
         for s in 0..num_sectors {
             let err = ide_wait_irq(channel);
             if err != 0 { return ide_print_error(drive, err); }
-
+            
             for i in 0..256 {
                 let data: u16 = inw!(CHANNELS[channel as usize].base);
                 let offset = (s as usize) * 512 + (i * 2);
@@ -309,51 +310,59 @@ pub fn ide_read_sectors(drive: usize, lba: u32, num_sectors: u8, buffer: &mut Ve
                 buffer[offset + 1] = (data >> 8) as u8;
             }
         }
-
         0
     }
 }
 
-pub fn ide_write_sectors(drive: usize, lba: u32, buffer: &[u8]) -> u8 {
+pub fn ide_write_sectors<T>(drive: usize, lba: u32, data: &T) -> u8 {
     unsafe {
         let dev = &IDE_DEVICES[drive];
         if dev.reserved == 0 { return 1; }
-
+        
         let channel = dev.channel;
         let drive_bit = dev.drive;
-
-        // Calculate number of sectors needed (round up)
-        let sectors = ((buffer.len() + 511) / 512) as u8;
+        let data_size = size_of_val(data);
         
-        // Create a temporary padded buffer with exact sector alignment
-        let mut temp_buffer: Vec<u8> = buffer.to_vec();
-        temp_buffer.resize(sectors as usize * 512, 0);
-
+        if data_size > 255 * 512 {
+            return 0xFF;
+        }
+        
+        let byte_ptr = data as *const T as *const u8;
+        let byte_slice = slice::from_raw_parts(byte_ptr, data_size);
+        let sectors = ((data_size + 511) / 512) as u8;
+        
         while (ide_read(channel, ATA_REG_STATUS) & ATA_SR_BSY) != 0 {}
-
+        
         ide_write(channel, ATA_REG_HDDEVSEL, 
-            0xE0 | ((drive_bit as u8) << 4) | ((lba >> 24) & 0x0F) as u8);
+            0xE0 | ((drive_bit as u8) << 4) | (((lba >> 24) & 0x0F) as u8));
+        
+        for _ in 0..4 {
+            ide_read(channel, ATA_REG_ALTSTATUS);
+        }
+        
         ide_write(channel, ATA_REG_SECCOUNT0, sectors);
         ide_write(channel, ATA_REG_LBA0, (lba & 0xFF) as u8);
         ide_write(channel, ATA_REG_LBA1, ((lba >> 8) & 0xFF) as u8);
         ide_write(channel, ATA_REG_LBA2, ((lba >> 16) & 0xFF) as u8);
+        
         ide_write(channel, ATA_REG_COMMAND, ATA_CMD_WRITE_PIO);
-
+        
         for s in 0..sectors {
             let err = ide_polling(channel, true);
             if err != 0 { return ide_print_error(drive, err); }
-
+            
             for i in 0..256 {
                 let offset = (s as usize) * 512 + (i * 2);
-                let lo = temp_buffer[offset] as u16;
-                let hi = temp_buffer[offset + 1] as u16;
+                let lo = byte_slice.get(offset).copied().unwrap_or(0) as u16;
+                let hi = byte_slice.get(offset + 1).copied().unwrap_or(0) as u16;
                 outw!(CHANNELS[channel as usize].base, lo | (hi << 8));
             }
         }
-
+        
+        // Flush write cache
         ide_write(channel, ATA_REG_COMMAND, ATA_CMD_CACHE_FLUSH);
         ide_polling(channel, false);
-
+        
         0
     }
 }
@@ -401,7 +410,7 @@ pub fn ide_init(bar0: u8, bar1: u8, bar2: u8, bar3: u8, bar4: u8) {
                     if status == 0 { break; }
                     if (status & ATA_SR_ERR) != 0 { break; }
                     if (status & ATA_SR_BSY) == 0 && (status & ATA_SR_DRQ) != 0 {
-                        let mut buf = IDE_BUF.lock();
+                        let mut buf = IDE_BUF;
                         ide_read_buffer(j as u8, ATA_REG_DATA, buf.as_mut_ptr().cast::<u32>(), 128);
 
                         let model_offset = ATA_IDENT_MODEL;
@@ -412,6 +421,13 @@ pub fn ide_init(bar0: u8, bar1: u8, bar2: u8, bar3: u8, bar4: u8) {
                         IDE_DEVICES[drive_index].model[40] = 0;
                         IDE_DEVICES[drive_index].reserved = 1;
                         IDE_DEVICES[drive_index].device_type = IDE_ATA as u16;
+                        IDE_DEVICES[drive_index].size = u32::from_le_bytes([
+                            buf[ATA_IDENT_MAX_LBA],
+                            buf[ATA_IDENT_MAX_LBA + 1],
+                            buf[ATA_IDENT_MAX_LBA + 2],
+                            buf[ATA_IDENT_MAX_LBA + 3],
+                        ]);
+                        println!("Device: {}, Size: {}", drive_index, IDE_DEVICES[drive_index].size);
                         count += 1;
                         break;
                     }

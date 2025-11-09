@@ -9,7 +9,8 @@ use limine::request::{FramebufferRequest, MemoryMapRequest, RequestsEndMarker, R
 
 // Eclipse crates
 use eclipse_framebuffer::{ ScrollingTextRenderer, println, print };
-use eclipse_ide::{ide_init, ide_read_sectors, ide_write_sectors};
+use eclipse_ide::ide_init;
+use eclipse_fs::write_eclipse_fs;
 use eclipse_os::{gdt, idt, mem::mem};
 
 static FONT: &[u8] = include_bytes!("../../eclipse_framebuffer/font/Mik_8x16.psf");
@@ -74,6 +75,9 @@ unsafe extern "C" fn kmain() -> ! {
     println!("Initializing IDE");
     ide_init(0, 0, 0, 0, 0);
     println!("IDE Initialized");
+
+    println!("Writing fs");
+    write_eclipse_fs(0);
 
     println!("System Booted Successfully!");
 

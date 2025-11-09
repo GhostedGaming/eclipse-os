@@ -1,8 +1,8 @@
 use core::fmt;
-use eclipse_ide::{IDE_DEVICES, IdeDevice};
+use eclipse_ide::IDE_DEVICES;
 use eclipse_framebuffer::println;
 
-struct SuperBlock {
+pub struct SuperBlock {
     magic: u16,
     version: u8,
     size: u64,
@@ -12,23 +12,30 @@ struct SuperBlock {
 }
 
 impl SuperBlock {
-    pub fn new(drive: u8) -> Option<Self> {
+    pub fn new(drive: u8) -> Self {
         unsafe {
-            let size_bytes: u64 = (IDE_DEVICES[drive as usize].size * 512).into();
+            let size_bytes: u32 = IDE_DEVICES[drive as usize].size * 512;
             
             if size_bytes == 0 {
                 println!("Drive size 0");
-                return None;
+                return Self {
+                    magic: 0xEC1,
+                    version: 1,
+                    size: size_bytes as u64,
+                    block_size: 16 * 1024,
+                    blocks: (size_bytes / (16 * 1024)) as u64,
+                    inodes: 500,
+                }
             }
             
-            Some(Self {
+            Self {
                 magic: 0xEC1,            // Magic ECL
                 version: 1,              // FS version
-                size: size_bytes,
+                size: size_bytes as u64,
                 block_size: 16 * 1024,   // 16 KiB
-                blocks: size_bytes / (16 * 1024),
+                blocks: (size_bytes / (16 * 1024)) as u64,
                 inodes: 500,
-            })
+            }
         }
     }
 }

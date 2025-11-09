@@ -14,3 +14,4 @@ eclipse_framebuffer = { path = "./eclipse_framebuffer" }
 eclipse_ide = { path = "./eclipse_ide" }
 eclipse_pci = { path = "./eclipse_pci" }
 eclipse_x86_64_commands = { path = "./eclipse_x86_64_commands" }
+eclipse_fs ={ path = "./eclipse_fs" }

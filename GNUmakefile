@@ -26,6 +26,7 @@ run: run-$(KARCH)
 run-hdd: run-hdd-$(KARCH)
 
 ide_disk.img:
+	rm -rf ide_disk.img
 	qemu-img create -f raw ide_disk.img 512M
 
 .PHONY: run-x86_64
