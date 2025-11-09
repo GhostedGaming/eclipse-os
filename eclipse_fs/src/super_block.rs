@@ -164,7 +164,7 @@ impl fmt::Display for SuperBlock {
             "SuperBlock {{ magic: 0x{:X}, version: {}, size: {} bytes, block_size: {}, blocks: {}, inodes: {}, inode_table: blocks {}-{}, block_bitmap: blocks {}-{}, reserved: blocks {}-{}, data_start: block {} }}",
             self.magic, self.version, self.size, self.block_size, self.blocks, self.inodes,
             self.inode_table_start, self.inode_table_start + self.inode_table_blocks - 1,
-            self.block_bitmap_start, self.block_bitmap_start + self.block_bitmap_blocks - 1, // Added bitmap info
+            self.block_bitmap_start, self.block_bitmap_start + self.block_bitmap_blocks - 1,
             self.reserved_start, self.reserved_start + self.reserved_blocks - 1,
             self.data_region_start
         )
