@@ -42,6 +42,7 @@ version = "0.1.1"
 name = "eclipse_fs"
 version = "0.1.0"
 dependencies = [
+ "eclipse_framebuffer",
  "eclipse_ide",
 ]
 

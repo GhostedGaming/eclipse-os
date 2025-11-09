@@ -1,4 +1,6 @@
-use eclipse_ide::IDE_DEVICES;
+use core::fmt;
+use eclipse_ide::{IDE_DEVICES, IdeDevice};
+use eclipse_framebuffer::println;
 
 struct SuperBlock {
     magic: u16,
@@ -6,22 +8,37 @@ struct SuperBlock {
     size: u64,
     block_size: u64,
     blocks: u64,
-    inodes: u8,
+    inodes: u16,
 }
 
 impl SuperBlock {
-    pub fn new(drive: u8) -> Self {
+    pub fn new(drive: u8) -> Option<Self> {
         unsafe {
-            let size_bytes = IDE_DEVICES[drive as usize].size * 512; // total bytes
-
-            Self {
-                magic: 0xEC1, // Magic ECL
-                version: 1,   // FS version
-                size: size_bytes as u64,
-                block_size: 16 * 1024, // 16 KiB
-                blocks: size_bytes as u64 / (16 * 1024),
-                inodes: 0,
+            let size_bytes: u64 = (IDE_DEVICES[drive as usize].size * 512).into();
+            
+            if size_bytes == 0 {
+                println!("Drive size 0");
+                return None;
             }
+            
+            Some(Self {
+                magic: 0xEC1,            // Magic ECL
+                version: 1,              // FS version
+                size: size_bytes,
+                block_size: 16 * 1024,   // 16 KiB
+                blocks: size_bytes / (16 * 1024),
+                inodes: 500,
+            })
         }
+    }
+}
+
+impl fmt::Display for SuperBlock {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "SuperBlock {{ magic: 0x{:X}, version: {}, size: {} bytes, block_size: {}, blocks: {}, inodes: {} }}",
+            self.magic, self.version, self.size, self.block_size, self.blocks, self.inodes
+        )
     }
 }
