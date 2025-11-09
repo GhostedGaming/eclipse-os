@@ -115,7 +115,7 @@ pub struct IdeDevice {
     signature: u16,
     capabilities: u16,
     command_sets: u32,
-    pub size: u32,
+    pub size: u64,
     pub model: [u8; 41],
 }
 
@@ -359,7 +359,6 @@ pub fn ide_write_sectors<T>(drive: usize, lba: u32, data: &T) -> u8 {
             }
         }
         
-        // Flush write cache
         ide_write(channel, ATA_REG_COMMAND, ATA_CMD_CACHE_FLUSH);
         ide_polling(channel, false);
         
@@ -421,11 +420,15 @@ pub fn ide_init(bar0: u8, bar1: u8, bar2: u8, bar3: u8, bar4: u8) {
                         IDE_DEVICES[drive_index].model[40] = 0;
                         IDE_DEVICES[drive_index].reserved = 1;
                         IDE_DEVICES[drive_index].device_type = IDE_ATA as u16;
-                        IDE_DEVICES[drive_index].size = u32::from_le_bytes([
+                        IDE_DEVICES[drive_index].size = u64::from_le_bytes([
                             buf[ATA_IDENT_MAX_LBA],
                             buf[ATA_IDENT_MAX_LBA + 1],
                             buf[ATA_IDENT_MAX_LBA + 2],
                             buf[ATA_IDENT_MAX_LBA + 3],
+                            0,
+                            0,
+                            0,
+                            0,
                         ]);
                         println!("Device: {}, Size: {}", drive_index, IDE_DEVICES[drive_index].size);
                         count += 1;
