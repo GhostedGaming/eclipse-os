@@ -99,7 +99,6 @@ unsafe extern "C" fn kmain() -> ! {
         Ok(data) => {
             println!("Read {} bytes from block 700", data.len());
 
-            // Count how many 0x42 values we got back
             let count_42 = data.iter().filter(|&&b| b == 0x42).count();
             let count_00 = data.iter().filter(|&&b| b == 0x00).count();
 
