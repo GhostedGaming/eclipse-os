@@ -1,6 +1,7 @@
 #![no_std]
 
 use core::fmt;
+use core::cell::UnsafeCell;
 
 #[repr(C, packed)]
 struct PSF1Header {
@@ -21,7 +22,35 @@ struct PSF2Header {
     width: u32,
 }
 
-static mut RENDERER: Option<ScrollingTextRenderer> = None;
+struct RendererCell {
+    inner: UnsafeCell<Option<ScrollingTextRenderer>>,
+}
+
+unsafe impl Sync for RendererCell {}
+
+impl RendererCell {
+    const fn new() -> Self {
+        Self {
+            inner: UnsafeCell::new(None),
+        }
+    }
+
+    fn set(&self, renderer: ScrollingTextRenderer) {
+        unsafe {
+            *self.inner.get() = Some(renderer);
+        }
+    }
+
+    fn get(&self) -> &mut ScrollingTextRenderer {
+        unsafe {
+            (*self.inner.get())
+                .as_mut()
+                .expect("Renderer not initialized")
+        }
+    }
+}
+
+static RENDERER: RendererCell = RendererCell::new();
 
 pub struct ScrollingTextRenderer {
     framebuffer: *mut u8,
@@ -53,27 +82,27 @@ impl ScrollingTextRenderer {
     ) {
         let (char_width, char_height, bytes_per_glyph) = Self::parse_psf(font_data);
         
-        unsafe {
-            RENDERER = Some(Self {
-                framebuffer,
-                width,
-                height,
-                pitch,
-                bpp,
-                x: 0,
-                y: 0,
-                fg_color: 0xFFFFFF,
-                bg_color: 0x000000,
-                font_data,
-                char_width,
-                char_height,
-                bytes_per_glyph,
-            });
-        }
+        let renderer = Self {
+            framebuffer,
+            width,
+            height,
+            pitch,
+            bpp,
+            x: 0,
+            y: 0,
+            fg_color: 0xFFFFFF,
+            bg_color: 0x000000,
+            font_data,
+            char_width,
+            char_height,
+            bytes_per_glyph,
+        };
+        
+        RENDERER.set(renderer);
     }
 
     pub fn get() -> &'static mut Self {
-        unsafe { RENDERER.as_mut().expect("Renderer not initialized") }
+        RENDERER.get()
     }
 
     fn parse_psf(data: &[u8]) -> (usize, usize, usize) {
@@ -228,6 +257,45 @@ impl ScrollingTextRenderer {
         self.x = 0;
         self.y = 0;
     }
+
+    pub fn panic_print(&mut self, s: &str) {
+        self.clear();
+        let center_y = self.height / 2;
+        
+        let line_count = s.lines().count();
+        let total_text_height = line_count * self.char_height;
+        
+        let start_y = if center_y > total_text_height / 2 {
+            center_y - total_text_height / 2
+        } else {
+            0
+        };
+        
+        self.y = start_y;
+        
+        for line in s.lines() {
+            let line_width: usize = line.chars().count() * self.char_width;
+            let center_x = if self.width > line_width {
+                (self.width - line_width) / 2
+            } else {
+                0
+            };
+            
+            self.x = center_x;
+            
+            for ch in line.chars() {
+                self.draw_char(ch, self.x, self.y);
+                self.x += self.char_width;
+            }
+            
+            self.x = 0;
+            self.y += self.char_height;
+        }
+    }
+
+    pub fn panic_write_str(&mut self, s: &str) {
+        self.panic_print(s);
+    }
 }
 
 impl fmt::Write for ScrollingTextRenderer {
@@ -254,5 +322,47 @@ macro_rules! println {
         use core::fmt::Write;
         let _ = write!($crate::ScrollingTextRenderer::get(), $($arg)*);
         $crate::ScrollingTextRenderer::get().write_char('\n');
+    }};
+}
+
+#[macro_export]
+macro_rules! panic_print {
+    ($($arg:tt)*) => {{
+        use core::fmt::Write;
+        
+        struct StackString {
+            buffer: [u8; 2048],
+            len: usize,
+        }
+        
+        impl StackString {
+            fn new() -> Self {
+                Self {
+                    buffer: [0u8; 2048],
+                    len: 0,
+                }
+            }
+            
+            fn as_str(&self) -> &str {
+                core::str::from_utf8(&self.buffer[..self.len]).unwrap_or("")
+            }
+        }
+        
+        impl core::fmt::Write for StackString {
+            fn write_str(&mut self, s: &str) -> core::fmt::Result {
+                let bytes = s.as_bytes();
+                let remaining = self.buffer.len() - self.len;
+                let to_write = core::cmp::min(bytes.len(), remaining);
+                
+                self.buffer[self.len..self.len + to_write].copy_from_slice(&bytes[..to_write]);
+                self.len += to_write;
+                
+                Ok(())
+            }
+        }
+        
+        let mut buffer = StackString::new();
+        let _ = write!(&mut buffer, $($arg)*);
+        $crate::ScrollingTextRenderer::get().panic_write_str(buffer.as_str());
     }};
 }

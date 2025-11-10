@@ -2,10 +2,14 @@
 extern crate alloc;
 use eclipse_ide::{ide_read_sectors, ide_write_sectors};
 use eclipse_framebuffer::println;
-use super_block::SuperBlock;
 use alloc::vec::Vec;
 
+// Exported functions and modules
+pub use super_block::SuperBlock;
+pub use block_io::{read_block, write_block, BlockError};
+
 mod super_block;
+mod block_io;
 
 fn zero_sector(drive: usize, start_block: u64, num_blocks: u64, block_size_bytes: u64) -> bool {
     let sector_size: u64 = 512;
