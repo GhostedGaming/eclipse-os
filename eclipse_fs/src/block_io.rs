@@ -1,5 +1,5 @@
 use alloc::{vec, vec::Vec};
-use eclipse_framebuffer::println;
+use eclipse_framebuffer::{print, println};
 use eclipse_ide::{ide_read_sectors, ide_write_sectors};
 use crate::super_block::SuperBlock;
 
@@ -9,11 +9,16 @@ pub enum BlockError {
     ReadFailed,
     WriteFailed,
     InvalidBlockSize,
+    InvalidDrive,
 }
 
 pub fn read_block(drive: usize, super_block: &SuperBlock, block: u64) -> Result<Vec<u8>, BlockError> {
     let block_count = super_block.blocks;
     let mut block_size = super_block.block_size;
+
+    if drive > 4 {
+        return Err(BlockError::InvalidDrive);
+    }
     
     if block >= block_count {
         println!("Block {} is greater than or equal to Block Count: {}", block, block_count);
@@ -28,8 +33,9 @@ pub fn read_block(drive: usize, super_block: &SuperBlock, block: u64) -> Result<
     let mut buffer = vec![0u8; block_size as usize];
     let sectors_per_block = block_size / 512;
     let lba = block * sectors_per_block as u64;
+    println!("Read lba: {}", lba);
     
-    if ide_read_sectors(drive, lba as u32, &mut buffer) != 0 {
+    if ide_read_sectors(drive, lba, &mut buffer) != 0 {
         return Err(BlockError::ReadFailed);
     }
     
@@ -40,6 +46,10 @@ pub fn read_block(drive: usize, super_block: &SuperBlock, block: u64) -> Result<
 pub fn write_block(drive: usize, super_block: &SuperBlock, block: u64, data: &[u8]) -> Result<(), BlockError> {
     let block_count = super_block.blocks;
     let mut block_size = super_block.block_size;
+
+    if drive > 4 {
+        return Err(BlockError::InvalidDrive);
+    }
     
     if block >= block_count {
         println!("Block {} is greater than or equal to Block Count: {}", block, block_count);
@@ -66,8 +76,15 @@ pub fn write_block(drive: usize, super_block: &SuperBlock, block: u64, data: &[u
     
     let sectors_per_block = block_size / 512;
     let lba = block * sectors_per_block as u64;
+
+    println!("Write lba: {}", lba);
+
+    println!("Printing first 126 bytes of the buffer");
+    for i in 0..126 {
+        print!("0x{:02X?} ", &buffer[i]);
+    }
     
-    if ide_write_sectors(drive, lba as u32, &buffer) != 0 {
+    if ide_write_sectors(drive, lba, &buffer) != 0 {
         return Err(BlockError::WriteFailed);
     }
     

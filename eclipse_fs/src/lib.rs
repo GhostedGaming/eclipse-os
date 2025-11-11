@@ -7,9 +7,11 @@ use alloc::vec::Vec;
 // Exported functions and modules
 pub use super_block::SuperBlock;
 pub use block_io::{read_block, write_block, BlockError};
+pub use bitmap::{write_bitmap, BitmapError};
 
 mod super_block;
 mod block_io;
+mod bitmap;
 
 fn zero_sector(drive: usize, start_block: u64, num_blocks: u64, block_size_bytes: u64) -> bool {
     let sector_size: u64 = 512;
@@ -23,7 +25,7 @@ fn zero_sector(drive: usize, start_block: u64, num_blocks: u64, block_size_bytes
     for i in 0..total_sectors {
         let sector_to_write = start_sector + i;
 
-        if ide_write_sectors(drive, sector_to_write as u32, &zero_sector) != 0 {
+        if ide_write_sectors(drive, sector_to_write, &zero_sector) != 0 {
             println!("Writing zeros failed at: {}", sector_to_write);
             return false;
         }
@@ -91,6 +93,13 @@ pub fn write_eclipse_fs(drive: u8) {
     match SuperBlock::from_bytes(&buf) {
         Ok(sb) => println!("Verification successful: {}", sb),
         Err(e) => println!("Verification failed: {}", e),
+    }
+
+    match write_bitmap(0, &super_block) {
+        Ok(()) => {
+            println!("Created bitmap open hex editor for debugging");
+        },
+        Err(e) => { println!("Error: {:?}", e)},
     }
 
     println!("Filesystem initialization complete.");

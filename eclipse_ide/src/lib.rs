@@ -89,6 +89,8 @@ const ATA_SECONDARY: u8 = 0x01;
 const ATA_READ: u8 = 0x00;
 const ATA_WRITE: u8 = 0x01;
 
+const MAX_SECTORS_PER_TRANSFER: usize = 128;
+
 #[repr(C)]
 struct IDEChannelRegisters {
     base: u16,
@@ -177,6 +179,27 @@ fn ide_read_buffer(channel: u8, reg: u8, buffer: *mut u32, quads: u32) {
         };
         for i in 0..quads {
             *buffer.add(i as usize) = inl!(port);
+        }
+        if reg > 0x07 && reg < 0x0C {
+            outb!(CHANNELS[channel as usize].ctrl, CHANNELS[channel as usize].nien);
+        }
+    }
+}
+
+fn ide_write_buffer(channel: u8, reg: u8, buffer: *const u32, quads: u32) {
+    unsafe {
+        if reg > 0x07 && reg < 0x0C {
+            outb!(CHANNELS[channel as usize].ctrl, 0x80 | CHANNELS[channel as usize].nien);
+        }
+        let port = match reg {
+            0x00..=0x07 => CHANNELS[channel as usize].base + (reg - 0x00) as u16,
+            0x08..=0x0B => CHANNELS[channel as usize].base + (reg - 0x06) as u16,
+            0x0C..=0x0D => CHANNELS[channel as usize].ctrl + (reg - 0x0A) as u16,
+            0x0E..=0x15 => CHANNELS[channel as usize].bmide + (reg - 0x0E) as u16,
+            _ => return,
+        };
+        for i in 0..quads {
+            outl!(port, *buffer.add(i as usize));
         }
         if reg > 0x07 && reg < 0x0C {
             outb!(CHANNELS[channel as usize].ctrl, CHANNELS[channel as usize].nien);
@@ -278,90 +301,133 @@ fn ide_print_error(drive: usize, mut err: u8) -> u8 {
     err
 }
 
-pub fn ide_read_sectors(drive: usize, lba: u32, buffer: &mut Vec<u8>) -> u8 {
+pub fn ide_read_sectors(drive: usize, lba: u64, buffer: &mut Vec<u8>) -> u8 {
     unsafe {
         let dev = &IDE_DEVICES[drive];
         if dev.reserved == 0 { return 1; }
         let channel = dev.channel;
         let drive_bit = dev.drive;
-
-        let num_sectors = buffer.len() / 512;
+        let total_sectors = buffer.len() / 512;
+        buffer.resize(total_sectors * 512, 0);
         
-        buffer.resize(num_sectors as usize * 512, 0);
+        let mut sectors_read = 0;
         
-        while (ide_read(channel, ATA_REG_STATUS) & ATA_SR_BSY) != 0 {}
-        
-        ide_write(channel, ATA_REG_HDDEVSEL, 
-            0xE0 | ((drive_bit as u8) << 4) | ((lba >> 24) & 0x0F) as u8);
-        ide_write(channel, ATA_REG_SECCOUNT0, num_sectors as u8);
-        ide_write(channel, ATA_REG_LBA0, (lba & 0xFF) as u8);
-        ide_write(channel, ATA_REG_LBA1, ((lba >> 8) & 0xFF) as u8);
-        ide_write(channel, ATA_REG_LBA2, ((lba >> 16) & 0xFF) as u8);
-        ide_write(channel, ATA_REG_COMMAND, ATA_CMD_READ_PIO);
-        
-        for s in 0..num_sectors {
-            let err = ide_wait_irq(channel);
-            if err != 0 { return ide_print_error(drive, err); }
+        while sectors_read < total_sectors {
+            let sectors_to_read = core::cmp::min(MAX_SECTORS_PER_TRANSFER, total_sectors - sectors_read);
+            let current_lba = lba + sectors_read as u64;
+            let use_lba48 = current_lba >= 0x10000000 || sectors_to_read > 256;
             
-            for i in 0..256 {
-                let data: u16 = inw!(CHANNELS[channel as usize].base);
-                let offset = (s as usize) * 512 + (i * 2);
-                buffer[offset] = (data & 0xFF) as u8;
-                buffer[offset + 1] = (data >> 8) as u8;
+            while (ide_read(channel, ATA_REG_STATUS) & ATA_SR_BSY) != 0 {}
+            
+            if use_lba48 {
+                ide_write(channel, ATA_REG_HDDEVSEL, 0x40 | ((drive_bit as u8) << 4));
+                ide_write(channel, ATA_REG_SECCOUNT1, ((sectors_to_read >> 8) & 0xFF) as u8);
+                ide_write(channel, ATA_REG_LBA3, ((current_lba >> 24) & 0xFF) as u8);
+                ide_write(channel, ATA_REG_LBA4, ((current_lba >> 32) & 0xFF) as u8);
+                ide_write(channel, ATA_REG_LBA5, ((current_lba >> 40) & 0xFF) as u8);
+                ide_write(channel, ATA_REG_SECCOUNT0, (sectors_to_read & 0xFF) as u8);
+                ide_write(channel, ATA_REG_LBA0, (current_lba & 0xFF) as u8);
+                ide_write(channel, ATA_REG_LBA1, ((current_lba >> 8) & 0xFF) as u8);
+                ide_write(channel, ATA_REG_LBA2, ((current_lba >> 16) & 0xFF) as u8);
+                ide_write(channel, ATA_REG_COMMAND, ATA_CMD_READ_PIO_EXT);
+            } else {
+                ide_write(channel, ATA_REG_HDDEVSEL, 
+                    0xE0 | ((drive_bit as u8) << 4) | ((current_lba >> 24) & 0x0F) as u8);
+                ide_write(channel, ATA_REG_SECCOUNT0, sectors_to_read as u8);
+                ide_write(channel, ATA_REG_LBA0, (current_lba & 0xFF) as u8);
+                ide_write(channel, ATA_REG_LBA1, ((current_lba >> 8) & 0xFF) as u8);
+                ide_write(channel, ATA_REG_LBA2, ((current_lba >> 16) & 0xFF) as u8);
+                ide_write(channel, ATA_REG_COMMAND, ATA_CMD_READ_PIO);
             }
+            
+            for s in 0..sectors_to_read {
+                let err = ide_wait_irq(channel);
+                if err != 0 { return ide_print_error(drive, err); }
+                
+                let offset = (sectors_read + s) * 512;
+                ide_read_buffer(channel, ATA_REG_DATA, 
+                    buffer.as_mut_ptr().add(offset).cast::<u32>(), 128);
+            }
+            
+            sectors_read += sectors_to_read;
         }
         0
     }
 }
 
-pub fn ide_write_sectors<T>(drive: usize, lba: u32, data: &T) -> u8 {
+pub fn ide_write_sectors(drive: usize, lba: u64, data: &[u8]) -> u8 {
     unsafe {
         let dev = &IDE_DEVICES[drive];
         if dev.reserved == 0 { return 1; }
-        
         let channel = dev.channel;
         let drive_bit = dev.drive;
-        let data_size = size_of_val(data);
+        let data_size = data.len();
+        let total_sectors = (data_size + 511) / 512;
         
-        if data_size > 255 * 512 {
-            return 0xFF;
-        }
+        let mut sectors_written = 0;
         
-        let byte_ptr = data as *const T as *const u8;
-        let byte_slice = slice::from_raw_parts(byte_ptr, data_size);
-        let sectors = ((data_size + 511) / 512) as u8;
-        
-        while (ide_read(channel, ATA_REG_STATUS) & ATA_SR_BSY) != 0 {}
-        
-        ide_write(channel, ATA_REG_HDDEVSEL, 
-            0xE0 | ((drive_bit as u8) << 4) | (((lba >> 24) & 0x0F) as u8));
-        
-        for _ in 0..4 {
-            ide_read(channel, ATA_REG_ALTSTATUS);
-        }
-        
-        ide_write(channel, ATA_REG_SECCOUNT0, sectors);
-        ide_write(channel, ATA_REG_LBA0, (lba & 0xFF) as u8);
-        ide_write(channel, ATA_REG_LBA1, ((lba >> 8) & 0xFF) as u8);
-        ide_write(channel, ATA_REG_LBA2, ((lba >> 16) & 0xFF) as u8);
-        
-        ide_write(channel, ATA_REG_COMMAND, ATA_CMD_WRITE_PIO);
-        
-        for s in 0..sectors {
-            let err = ide_polling(channel, true);
-            if err != 0 { return ide_print_error(drive, err); }
+        while sectors_written < total_sectors {
+            let sectors_to_write = core::cmp::min(MAX_SECTORS_PER_TRANSFER, total_sectors - sectors_written);
+            let current_lba = lba + sectors_written as u64;
+            let use_lba48 = current_lba >= 0x10000000 || sectors_to_write > 256;
             
-            for i in 0..256 {
-                let offset = (s as usize) * 512 + (i * 2);
-                let lo = byte_slice.get(offset).copied().unwrap_or(0) as u16;
-                let hi = byte_slice.get(offset + 1).copied().unwrap_or(0) as u16;
-                outw!(CHANNELS[channel as usize].base, lo | (hi << 8));
+            while (ide_read(channel, ATA_REG_STATUS) & ATA_SR_BSY) != 0 {}
+            
+            if use_lba48 {
+                ide_write(channel, ATA_REG_HDDEVSEL, 0x40 | ((drive_bit as u8) << 4));
+                for _ in 0..4 {
+                    ide_read(channel, ATA_REG_ALTSTATUS);
+                }
+                ide_write(channel, ATA_REG_SECCOUNT1, ((sectors_to_write >> 8) & 0xFF) as u8);
+                ide_write(channel, ATA_REG_LBA3, ((current_lba >> 24) & 0xFF) as u8);
+                ide_write(channel, ATA_REG_LBA4, ((current_lba >> 32) & 0xFF) as u8);
+                ide_write(channel, ATA_REG_LBA5, ((current_lba >> 40) & 0xFF) as u8);
+                ide_write(channel, ATA_REG_SECCOUNT0, (sectors_to_write & 0xFF) as u8);
+                ide_write(channel, ATA_REG_LBA0, (current_lba & 0xFF) as u8);
+                ide_write(channel, ATA_REG_LBA1, ((current_lba >> 8) & 0xFF) as u8);
+                ide_write(channel, ATA_REG_LBA2, ((current_lba >> 16) & 0xFF) as u8);
+                ide_write(channel, ATA_REG_COMMAND, ATA_CMD_WRITE_PIO_EXT);
+            } else {
+                ide_write(channel, ATA_REG_HDDEVSEL, 
+                    0xE0 | ((drive_bit as u8) << 4) | (((current_lba >> 24) & 0x0F) as u8));
+                for _ in 0..4 {
+                    ide_read(channel, ATA_REG_ALTSTATUS);
+                }
+                ide_write(channel, ATA_REG_SECCOUNT0, sectors_to_write as u8);
+                ide_write(channel, ATA_REG_LBA0, (current_lba & 0xFF) as u8);
+                ide_write(channel, ATA_REG_LBA1, ((current_lba >> 8) & 0xFF) as u8);
+                ide_write(channel, ATA_REG_LBA2, ((current_lba >> 16) & 0xFF) as u8);
+                ide_write(channel, ATA_REG_COMMAND, ATA_CMD_WRITE_PIO);
             }
+            
+            for s in 0..sectors_to_write {
+                let err = ide_polling(channel, true);
+                if err != 0 { return ide_print_error(drive, err); }
+                
+                let offset = (sectors_written + s) * 512;
+                let bytes_left = data_size.saturating_sub(offset);
+                let bytes_to_write = core::cmp::min(512, bytes_left);
+                
+                if bytes_to_write >= 512 {
+                    ide_write_buffer(channel, ATA_REG_DATA,
+                        data.as_ptr().add(offset).cast::<u32>(), 128);
+                } else {
+                    let mut padded = [0u8; 512];
+                    padded[..bytes_to_write].copy_from_slice(&data[offset..offset + bytes_to_write]);
+                    ide_write_buffer(channel, ATA_REG_DATA,
+                        padded.as_ptr().cast::<u32>(), 128);
+                }
+            }
+            
+            sectors_written += sectors_to_write;
         }
         
-        ide_write(channel, ATA_REG_COMMAND, ATA_CMD_CACHE_FLUSH);
+        if lba >= 0x10000000 {
+            ide_write(channel, ATA_REG_COMMAND, ATA_CMD_CACHE_FLUSH_EXT);
+        } else {
+            ide_write(channel, ATA_REG_COMMAND, ATA_CMD_CACHE_FLUSH);
+        }
         ide_polling(channel, false);
-        
         0
     }
 }
@@ -420,20 +486,46 @@ pub fn ide_init(bar0: u8, bar1: u8, bar2: u8, bar3: u8, bar4: u8) {
                         IDE_DEVICES[drive_index].model[40] = 0;
                         IDE_DEVICES[drive_index].reserved = 1;
                         IDE_DEVICES[drive_index].device_type = IDE_ATA as u16;
-                        IDE_DEVICES[drive_index].size = u64::from_le_bytes([
-                            buf[ATA_IDENT_MAX_LBA],
-                            buf[ATA_IDENT_MAX_LBA + 1],
-                            buf[ATA_IDENT_MAX_LBA + 2],
-                            buf[ATA_IDENT_MAX_LBA + 3],
-                            0,
-                            0,
-                            0,
-                            0,
+
+                        let commands_sets = u16::from_le_bytes([
+                            buf[ATA_IDENT_COMMANDSETS],
+                            buf[ATA_IDENT_COMMANDSETS + 1]
                         ]);
-                        println!("Device: {}, Size: {}", drive_index, IDE_DEVICES[drive_index].size);
+
+                        let lba48 = (commands_sets & (1 << 10)) != 0;
+
+                        if lba48 {
+                            IDE_DEVICES[drive_index].size = u64::from_le_bytes([
+                                buf[ATA_IDENT_MAX_LBA_EXT],
+                                buf[ATA_IDENT_MAX_LBA_EXT + 1],
+                                buf[ATA_IDENT_MAX_LBA_EXT + 2],
+                                buf[ATA_IDENT_MAX_LBA_EXT + 3],
+                                buf[ATA_IDENT_MAX_LBA_EXT + 4],
+                                buf[ATA_IDENT_MAX_LBA_EXT + 5],
+                                0,
+                                0,
+                            ]);
+                            println!("Device {}: LBA48, Size: {} sectors", 
+                                   drive_index, IDE_DEVICES[drive_index].size);
+                        } else {
+                            IDE_DEVICES[drive_index].size = u64::from_le_bytes([
+                                buf[ATA_IDENT_MAX_LBA],
+                                buf[ATA_IDENT_MAX_LBA + 1],
+                                buf[ATA_IDENT_MAX_LBA + 2],
+                                buf[ATA_IDENT_MAX_LBA + 3],
+                                0,
+                                0,
+                                0,
+                                0,
+                            ]);
+                            println!("Device {}: LBA28, Size: {} sectors", 
+                                   drive_index, IDE_DEVICES[drive_index].size);
+                        }
+                        
                         count += 1;
                         break;
                     }
+                    
                     timeout -= 1;
                     if timeout == 0 { break; }
                 }
