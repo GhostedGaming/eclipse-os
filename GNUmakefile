@@ -29,15 +29,22 @@ ide_disk.img:
 	rm -rf ide_disk.img
 	qemu-img create -f raw ide_disk.img 512M
 
+ahci_disk.img:
+	rm -rf ahci_disk.img
+	qemu-img create -f raw ahci_disk.img 512M
+
 .PHONY: run-x86_64
-run-x86_64: ovmf/ovmf-code-$(KARCH).fd ovmf/ovmf-vars-$(KARCH).fd $(IMAGE_NAME).iso ide_disk.img
+run-x86_64: ovmf/ovmf-code-$(KARCH).fd ovmf/ovmf-vars-$(KARCH).fd $(IMAGE_NAME).iso ide_disk.img ahci_disk.img
 	qemu-system-$(KARCH) \
-	    -M pc \
-	    -drive if=pflash,unit=0,format=raw,file=ovmf/ovmf-code-$(KARCH).fd,readonly=on \
-	    -drive if=pflash,unit=1,format=raw,file=ovmf/ovmf-vars-$(KARCH).fd \
-	    -cdrom $(IMAGE_NAME).iso \
-	    -drive file=ide_disk.img,format=raw,if=ide,index=0,media=disk \
-	    $(QEMUFLAGS)
+		-M pc \
+		-drive if=pflash,unit=0,format=raw,file=ovmf/ovmf-code-$(KARCH).fd,readonly=on \
+		-drive if=pflash,unit=1,format=raw,file=ovmf/ovmf-vars-$(KARCH).fd \
+		-cdrom $(IMAGE_NAME).iso \
+		-drive file=ide_disk.img,format=raw,if=ide,index=0,media=disk \
+		-drive file=ahci_disk.img,format=raw,if=none,id=ahci0 \
+		-device ahci,id=ahci \
+		-device ide-hd,drive=ahci0,bus=ahci.0 \
+		$(QEMUFLAGS)
 
 .PHONY: run-codespace-x86_64
 run-codespace-x86_64: ovmf/ovmf-code-$(KARCH).fd ovmf/ovmf-vars-$(KARCH).fd $(IMAGE_NAME).iso ide_disk.img

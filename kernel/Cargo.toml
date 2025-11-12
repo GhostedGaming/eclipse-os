@@ -9,8 +9,11 @@ x86_64 = { workspace = true}
 uart_16550 = { workspace = true }
 eclipse_framebuffer = { workspace = true }
 eclipse_ide = { workspace = true}
-eclipse_x86_64_commands = { workspace = true}
-eclipse_fs ={ workspace = true}
+eclipse_x86_64_commands = { workspace = true }
+eclipse_fs = { workspace = true }
+eclipse_ahci = { workspace = true }
+eclipse_pci = { workspace = true }
+eclipse_threader = { workspace = true }
 
 pic8259 = "0.11.0"
 spin = { workspace = true }

@@ -1,0 +1,6 @@
+[submodule "eclipse-threader"]
+	path = eclipse-threader
+	url = https://github.com/GhostedGaming/eclipse-threader.git
+[submodule "eclipse_threader"]
+	path = eclipse_threader
+	url = https://github.com/GhostedGaming/eclipse_threader.git

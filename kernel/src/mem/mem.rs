@@ -381,15 +381,47 @@ impl VMM {
     }
     
     pub unsafe fn map_page(virt: VirtAddr, phys: PhysAddr, flags: u64) -> Option<()> {
-        let p4 = &mut *KERNEL_PAGE_TABLE;
-        let p3 = Self::get_or_create_table(&mut p4.entries[virt.p4_index()])?;
-        let p2 = Self::get_or_create_table(&mut (*p3).entries[virt.p3_index()])?;
-        let p1 = Self::get_or_create_table(&mut (*p2).entries[virt.p2_index()])?;
-        
+        const HHDM_OFFSET: u64 = 0xFFFF800000000000;
+
+        let p4 = &mut *(((KERNEL_PAGE_TABLE as u64) | HHDM_OFFSET) as *mut PageTable);
+
+        let p3_entry = &mut p4.entries[virt.p4_index()];
+        let p3 = if p3_entry.is_present() {
+            ((p3_entry.get_addr().as_u64()) | HHDM_OFFSET) as *mut PageTable
+        } else {
+            let frame = FrameAllocator::alloc_frame()?;
+            let table = ((frame.as_u64()) | HHDM_OFFSET) as *mut PageTable;
+            (*table).zero();
+            p3_entry.set_addr(frame, PageTableEntry::PRESENT | PageTableEntry::WRITABLE | PageTableEntry::USER);
+            table
+        };
+
+        let p2_entry = &mut (*p3).entries[virt.p3_index()];
+        let p2 = if p2_entry.is_present() {
+            ((p2_entry.get_addr().as_u64()) | HHDM_OFFSET) as *mut PageTable
+        } else {
+            let frame = FrameAllocator::alloc_frame()?;
+            let table = ((frame.as_u64()) | HHDM_OFFSET) as *mut PageTable;
+            (*table).zero();
+            p2_entry.set_addr(frame, PageTableEntry::PRESENT | PageTableEntry::WRITABLE | PageTableEntry::USER);
+            table
+        };
+
+        let p1_entry = &mut (*p2).entries[virt.p2_index()];
+        let p1 = if p1_entry.is_present() {
+            ((p1_entry.get_addr().as_u64()) | HHDM_OFFSET) as *mut PageTable
+        } else {
+            let frame = FrameAllocator::alloc_frame()?;
+            let table = ((frame.as_u64()) | HHDM_OFFSET) as *mut PageTable;
+            (*table).zero();
+            p1_entry.set_addr(frame, PageTableEntry::PRESENT | PageTableEntry::WRITABLE | PageTableEntry::USER);
+            table
+        };
+
         (*p1).entries[virt.p1_index()].set_addr(phys, flags | PageTableEntry::PRESENT);
-        
+
         core::arch::asm!("invlpg [{}]", in(reg) virt.as_u64(), options(nostack, preserves_flags));
-        
+
         Some(())
     }
     

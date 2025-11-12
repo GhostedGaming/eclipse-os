@@ -1,88 +1,157 @@
 use alloc::{vec::Vec, vec};
-use eclipse_framebuffer::println;
-use eclipse_ide::{IDE_DEVICES, ide_read_sectors, ide_write_sectors};
+use eclipse_ide::{ide_read_sectors, ide_write_sectors};
 use super::SuperBlock;
 
 #[derive(Debug)]
 pub enum BitmapError {
-    FailedToWriteBit,
     FailedToReadBitmap,
-    FailedToCreateBitmap,
     FailedToWriteBitmap,
     InvalidDrive,
+    InvalidBlock,
 }
 
-// Reads the whole drive and creates a bitmap and updates the old one
-fn return_new_bitmap(drive: usize, super_block: &SuperBlock) -> Result<Vec<u8>, BitmapError> {
-    println!("Creating new bitmap");
-    unsafe {
+pub struct BlockBitmap {
+    bits: Vec<u8>,
+    total_blocks: u64,
+}
+
+impl BlockBitmap {
+    pub fn new(super_block: &SuperBlock) -> Self {
+        let total_blocks = super_block.blocks();
+        let bitmap_bytes = ((total_blocks + 7) / 8) as usize;
+        let mut bits = vec![0u8; bitmap_bytes];
+
+        for block in 0..super_block.data_region_start {
+            Self::set_bit(&mut bits, block as usize);
+        }
+
+        Self {
+            bits,
+            total_blocks,
+        }
+    }
+
+    pub fn from_disk(drive: usize, super_block: &SuperBlock) -> Result<Self, BitmapError> {
         if drive >= 4 {
             return Err(BitmapError::InvalidDrive);
         }
-        let dev = IDE_DEVICES[drive];
-        let block_size = super_block.block_size as usize;
-        let dev_size = dev.size;
-        let mut bitmap = Vec::new();
-        const SECTOR_SIZE: usize = 512;
-        let sectors_per_block = (block_size + SECTOR_SIZE - 1) / SECTOR_SIZE;
-        
-        for block_idx in 0..(dev_size as usize / sectors_per_block) {
-            let mut buffer = vec![0u8; block_size];
-            for sector_offset in 0..sectors_per_block {
-                let sector = (block_idx * sectors_per_block + sector_offset) as u64;
-                if sector >= dev_size {
-                    break;
-                }
-                let mut sector_buffer = vec![0u8; SECTOR_SIZE];
-                if ide_read_sectors(drive, sector, &mut sector_buffer) != 0 {
-                    return Err(BitmapError::FailedToCreateBitmap);
-                }
-                let start = sector_offset * SECTOR_SIZE;
-                let end = (start + SECTOR_SIZE).min(block_size);
-                buffer[start..end].copy_from_slice(&sector_buffer[0..(end - start)]);
-            }
-            
-            let mut is_used = false;
-            for i in 0..block_size {
-                if buffer[i] > 0 {
-                    is_used = true;
-                    println!("{}", i);
-                    break;
-                }
-            }
-            bitmap.push(if is_used { 1 } else { 0 });
-        }
-        Ok(bitmap)
-    }
-}
 
-pub fn write_bitmap(drive: usize, super_block: &SuperBlock) -> Result<(), BitmapError> {
-    println!("Attempting to write bitmap");
-    if drive >= 4 {
-        return Err(BitmapError::InvalidDrive);
-    }
-    
-    let mut bitmap = return_new_bitmap(drive, super_block)?;
-    
-    const SECTOR_SIZE: usize = 512;
-    let remainder = bitmap.len() % SECTOR_SIZE;
-    if remainder != 0 {
-        let padding_needed = SECTOR_SIZE - remainder;
-        bitmap.resize(bitmap.len() + padding_needed, 0);
-    }
-    
-    let block_size = super_block.block_size;
-    let sectors_per_block = block_size / 512;
-    let mut lba = super_block.block_bitmap_start * sectors_per_block;
-    
-    for chunk in bitmap.chunks(SECTOR_SIZE) {
-        let mut sector_buffer = chunk.to_vec();
-        if ide_write_sectors(drive, lba, &mut sector_buffer) != 0 {
-            return Err(BitmapError::FailedToWriteBit);
+        let total_blocks = super_block.blocks();
+        let bitmap_bytes = ((total_blocks + 7) / 8) as usize;
+        let sectors_per_block = (super_block.block_size / 512) as u64;
+        let start_sector = super_block.block_bitmap_start * sectors_per_block;
+        
+        let sectors_needed = ((bitmap_bytes + 511) / 512) as u64;
+        let mut bits = vec![0u8; sectors_needed as usize * 512];
+
+        for sector_offset in 0..sectors_needed {
+            let sector = start_sector + sector_offset;
+            let offset = (sector_offset as usize) * 512;
+            
+            if ide_read_sectors(drive, sector, &mut bits[offset..offset + 512]) != 0 {
+                return Err(BitmapError::FailedToReadBitmap);
+            }
         }
-        println!("LBA: {}", lba);
-        lba += 1;
+
+        bits.truncate(bitmap_bytes);
+
+        Ok(Self {
+            bits,
+            total_blocks,
+        })
     }
-    
-    Ok(())
+
+    pub fn write_to_disk(&self, drive: usize, super_block: &SuperBlock) -> Result<(), BitmapError> {
+        if drive >= 4 {
+            return Err(BitmapError::InvalidDrive);
+        }
+
+        let sectors_per_block = (super_block.block_size / 512) as u64;
+        let start_sector = super_block.block_bitmap_start * sectors_per_block;
+        
+        let mut padded_bits = self.bits.clone();
+        let remainder = padded_bits.len() % 512;
+        if remainder != 0 {
+            padded_bits.resize(padded_bits.len() + (512 - remainder), 0);
+        }
+
+        for (i, chunk) in padded_bits.chunks(512).enumerate() {
+            let sector = start_sector + i as u64;
+            let mut buffer = chunk.to_vec();
+            
+            if ide_write_sectors(drive, sector, &mut buffer) != 0 {
+                return Err(BitmapError::FailedToWriteBitmap);
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn allocate_block(&mut self) -> Result<u64, BitmapError> {
+        for block in 0..self.total_blocks as usize {
+            if !self.is_allocated(block) {
+                Self::set_bit(&mut self.bits, block);
+                return Ok(block as u64);
+            }
+        }
+        Err(BitmapError::InvalidBlock)
+    }
+
+    pub fn allocate_specified_block(&mut self, block: u64) -> Result<(), BitmapError> {
+        if block >= self.total_blocks {
+            return Err(BitmapError::InvalidBlock);
+        }
+        if self.is_allocated(block as usize) {
+            return Ok(());
+        }
+        Self::set_bit(&mut self.bits, block as usize);
+        Ok(())
+    }
+
+    pub fn free_block(&mut self, block: u64) -> Result<(), BitmapError> {
+        if block >= self.total_blocks {
+            return Err(BitmapError::InvalidBlock);
+        }
+        Self::clear_bit(&mut self.bits, block as usize);
+        Ok(())
+    }
+
+    pub fn is_allocated(&self, block: usize) -> bool {
+        if block >= self.total_blocks as usize {
+            return false;
+        }
+        let byte_idx = block / 8;
+        let bit_idx = block % 8;
+        (self.bits[byte_idx] & (1 << bit_idx)) != 0
+    }
+
+    fn set_bit(bits: &mut [u8], block: usize) {
+        let byte_idx = block / 8;
+        let bit_idx = block % 8;
+        if byte_idx < bits.len() {
+            bits[byte_idx] |= 1 << bit_idx;
+        }
+    }
+
+    fn clear_bit(bits: &mut [u8], block: usize) {
+        let byte_idx = block / 8;
+        let bit_idx = block % 8;
+        if byte_idx < bits.len() {
+            bits[byte_idx] &= !(1 << bit_idx);
+        }
+    }
+
+    pub fn free_blocks(&self) -> u64 {
+        let mut count = 0;
+        for block in 0..self.total_blocks as usize {
+            if !self.is_allocated(block) {
+                count += 1;
+            }
+        }
+        count
+    }
+
+    pub fn used_blocks(&self) -> u64 {
+        self.total_blocks - self.free_blocks()
+    }
 }

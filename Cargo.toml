@@ -1,5 +1,5 @@
 [workspace]
-members = ["eclipse_ahci","eclipse_framebuffer", "eclipse_fs", "eclipse_ide", "eclipse_pci", "eclipse_x86_64_commands","kernel"]
+members = ["eclipse_ahci","eclipse_framebuffer", "eclipse_fs", "eclipse_ide", "eclipse_pci", "eclipse_x86_64_commands","kernel","eclipse_threader"]
 resolver = "2"
 
 [workspace.dependencies]
@@ -15,3 +15,4 @@ eclipse_ide = { path = "./eclipse_ide" }
 eclipse_pci = { path = "./eclipse_pci" }
 eclipse_x86_64_commands = { path = "./eclipse_x86_64_commands" }
 eclipse_fs ={ path = "./eclipse_fs" }
+eclipse_threader = { path = "./eclipse_threader" }

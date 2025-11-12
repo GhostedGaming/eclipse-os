@@ -5,12 +5,8 @@
 //! It was also known as IDE
 extern crate alloc;
 
-use alloc::vec::Vec;
-use core::slice;
-use core::mem::size_of_val;
 use eclipse_framebuffer::println;
 use eclipse_x86_64_commands::*;
-use spin::Mutex;
 
 const ATA_SR_BSY: u8 = 0x80;
 const ATA_SR_DRDY: u8 = 0x40;
@@ -301,17 +297,19 @@ fn ide_print_error(drive: usize, mut err: u8) -> u8 {
     err
 }
 
-pub fn ide_read_sectors(drive: usize, lba: u64, buffer: &mut Vec<u8>) -> u8 {
+pub fn ide_read_sectors(drive: usize, lba: u64, buffer: &mut [u8]) -> u8 {
     unsafe {
         let dev = &IDE_DEVICES[drive];
         if dev.reserved == 0 { return 1; }
         let channel = dev.channel;
         let drive_bit = dev.drive;
         let total_sectors = buffer.len() / 512;
-        buffer.resize(total_sectors * 512, 0);
+        
+        if buffer.len() < total_sectors * 512 {
+            return 1;
+        }
         
         let mut sectors_read = 0;
-        
         while sectors_read < total_sectors {
             let sectors_to_read = core::cmp::min(MAX_SECTORS_PER_TRANSFER, total_sectors - sectors_read);
             let current_lba = lba + sectors_read as u64;
@@ -343,12 +341,10 @@ pub fn ide_read_sectors(drive: usize, lba: u64, buffer: &mut Vec<u8>) -> u8 {
             for s in 0..sectors_to_read {
                 let err = ide_wait_irq(channel);
                 if err != 0 { return ide_print_error(drive, err); }
-                
                 let offset = (sectors_read + s) * 512;
                 ide_read_buffer(channel, ATA_REG_DATA, 
                     buffer.as_mut_ptr().add(offset).cast::<u32>(), 128);
             }
-            
             sectors_read += sectors_to_read;
         }
         0
@@ -375,9 +371,6 @@ pub fn ide_write_sectors(drive: usize, lba: u64, data: &[u8]) -> u8 {
             
             if use_lba48 {
                 ide_write(channel, ATA_REG_HDDEVSEL, 0x40 | ((drive_bit as u8) << 4));
-                for _ in 0..4 {
-                    ide_read(channel, ATA_REG_ALTSTATUS);
-                }
                 ide_write(channel, ATA_REG_SECCOUNT1, ((sectors_to_write >> 8) & 0xFF) as u8);
                 ide_write(channel, ATA_REG_LBA3, ((current_lba >> 24) & 0xFF) as u8);
                 ide_write(channel, ATA_REG_LBA4, ((current_lba >> 32) & 0xFF) as u8);
@@ -390,9 +383,6 @@ pub fn ide_write_sectors(drive: usize, lba: u64, data: &[u8]) -> u8 {
             } else {
                 ide_write(channel, ATA_REG_HDDEVSEL, 
                     0xE0 | ((drive_bit as u8) << 4) | (((current_lba >> 24) & 0x0F) as u8));
-                for _ in 0..4 {
-                    ide_read(channel, ATA_REG_ALTSTATUS);
-                }
                 ide_write(channel, ATA_REG_SECCOUNT0, sectors_to_write as u8);
                 ide_write(channel, ATA_REG_LBA0, (current_lba & 0xFF) as u8);
                 ide_write(channel, ATA_REG_LBA1, ((current_lba >> 8) & 0xFF) as u8);
@@ -417,17 +407,15 @@ pub fn ide_write_sectors(drive: usize, lba: u64, data: &[u8]) -> u8 {
                     ide_write_buffer(channel, ATA_REG_DATA,
                         padded.as_ptr().cast::<u32>(), 128);
                 }
+                
+                ide_write(channel, ATA_REG_COMMAND, ATA_CMD_CACHE_FLUSH);
+                let flush_err = ide_polling(channel, false);
+                if flush_err != 0 { return ide_print_error(drive, flush_err); }
             }
             
             sectors_written += sectors_to_write;
         }
         
-        if lba >= 0x10000000 {
-            ide_write(channel, ATA_REG_COMMAND, ATA_CMD_CACHE_FLUSH_EXT);
-        } else {
-            ide_write(channel, ATA_REG_COMMAND, ATA_CMD_CACHE_FLUSH);
-        }
-        ide_polling(channel, false);
         0
     }
 }

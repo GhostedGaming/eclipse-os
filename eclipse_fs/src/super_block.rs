@@ -149,7 +149,7 @@ impl SuperBlock {
         use eclipse_ide::ide_read_sectors;
         use alloc::vec::Vec;
 
-        // Read sector 1 which contains the superblock (matching write_eclipse_fs)
+        // Read sector 1
         let mut buffer: Vec<u8> = alloc::vec![0u8; 512];
 
         let status = ide_read_sectors(drive as usize, 1, &mut buffer);

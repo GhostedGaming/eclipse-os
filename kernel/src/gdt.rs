@@ -1,4 +1,5 @@
 use core::ptr::{addr_of, addr_of_mut};
+use x86_64;
 
 #[repr(C, packed)]
 #[derive(Clone, Copy)]
@@ -185,4 +186,8 @@ unsafe fn gdt_load() {
             in(reg) 0x28u16,
         );
     }
+}
+
+pub fn load_usermode() {
+    
 }
