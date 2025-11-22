@@ -1,7 +1,7 @@
 use alloc::vec;
 use eclipse_framebuffer::println;
-use eclipse_ide::{ide_read_sectors, ide_write_sectors};
-use eclipse_ahci::{HbaPort, ahci_read, ahci_write};
+use ide::{ide_read_sectors, ide_write_sectors};
+use ahci::{HbaPort, ahci_read, ahci_write};
 use crate::super_block::SuperBlock;
 use crate::bitmap::{BlockBitmap, BitmapError};
 

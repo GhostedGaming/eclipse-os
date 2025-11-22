@@ -13,6 +13,6 @@ keywords = ["no-std", "fs", "limine", "osdev", "bare-metal"]
 categories = ["no-std", "os", "embedded"]
 
 [dependencies]
-eclipse_ide = { workspace = true }
+ide = { workspace = true }
 eclipse_framebuffer = { workspace = true }
-eclipse_ahci = { workspace = true }
+ahci = { workspace = true }

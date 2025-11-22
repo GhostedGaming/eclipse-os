@@ -1,10 +1,10 @@
 [package]
-name = "eclipse_ide"
+name = "ide"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-eclipse_x86_64_commands = { workspace = true}
+bare_x86_64 = { workspace = true }
 eclipse_framebuffer = { workspace = true }
 
 spin = { workspace = true }

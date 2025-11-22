@@ -8,7 +8,7 @@
 extern crate alloc;
 
 use eclipse_framebuffer::println;
-use eclipse_pci::{pci_config_read_dword, PCI_CLASS_MASS_STORAGE, PCI_SUBCLASS_SATA};
+use pci::{pci_config_read_dword, PCI_CLASS_MASS_STORAGE, PCI_SUBCLASS_SATA};
 
 pub use types::*;
 mod types;

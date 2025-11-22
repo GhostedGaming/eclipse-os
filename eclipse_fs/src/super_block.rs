@@ -1,5 +1,5 @@
 use core::fmt;
-use eclipse_ide::IDE_DEVICES;
+use ide::IDE_DEVICES;
 use eclipse_framebuffer::println;
 
 /// Superblock structure
@@ -146,7 +146,7 @@ impl SuperBlock {
     }
 
     pub fn read_super_block(drive: u8) -> Result<Self, &'static str> {
-        use eclipse_ide::ide_read_sectors;
+        use ide::ide_read_sectors;
         use alloc::vec::Vec;
 
         // Read sector 1

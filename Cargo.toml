@@ -1,5 +1,5 @@
 [workspace]
-members = ["eclipse_ahci","eclipse_framebuffer", "eclipse_fs", "eclipse_ide", "eclipse_pci", "eclipse_x86_64_commands","kernel","eclipse_threader"]
+members = ["ahci","eclipse_framebuffer", "eclipse_fs", "ide", "pci", "kernel","eclipse_threader", "bare_x86_64"]
 resolver = "2"
 
 [workspace.dependencies]
@@ -9,10 +9,10 @@ uart_16550 = "0.4.0"
 spin = "0.10.0"
 
 # Eclipse crates
-eclipse_ahci = { path = "./eclipse_ahci" }
+ahci = { path = "./ahci" }
 eclipse_framebuffer = { path = "./eclipse_framebuffer" }
-eclipse_ide = { path = "./eclipse_ide" }
-eclipse_pci = { path = "./eclipse_pci" }
-eclipse_x86_64_commands = { path = "./eclipse_x86_64_commands" }
+ide = { path = "./ide" }
+pci = { path = "./pci" }
+bare_x86_64 = { path = "./bare_x86_64" }
 eclipse_fs ={ path = "./eclipse_fs" }
 eclipse_threader = { path = "./eclipse_threader" }

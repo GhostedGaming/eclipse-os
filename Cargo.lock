@@ -3,6 +3,18 @@
 version = 4
 
 [[package]]
+name = "ahci"
+version = "0.1.0"
+dependencies = [
+ "eclipse_framebuffer",
+ "pci",
+]
+
+[[package]]
+name = "bare_x86_64"
+version = "0.1.0"
+
+[[package]]
 name = "bit_field"
 version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -80,14 +92,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0a5c400df2834b80a4c3327b3aad3a4c4cd4de0629063962b03235697506a28"
 
 [[package]]
-name = "eclipse_ahci"
-version = "0.1.0"
-dependencies = [
- "eclipse_framebuffer",
- "eclipse_pci",
-]
-
-[[package]]
 name = "eclipse_framebuffer"
 version = "0.1.1"
 
@@ -95,45 +99,28 @@ version = "0.1.1"
 name = "eclipse_fs"
 version = "0.1.0"
 dependencies = [
- "eclipse_ahci",
+ "ahci",
  "eclipse_framebuffer",
- "eclipse_ide",
-]
-
-[[package]]
-name = "eclipse_ide"
-version = "0.1.0"
-dependencies = [
- "eclipse_framebuffer",
- "eclipse_x86_64_commands",
- "spin",
+ "ide",
 ]
 
 [[package]]
 name = "eclipse_os"
 version = "0.1.0"
 dependencies = [
+ "ahci",
+ "bare_x86_64",
  "cc",
- "eclipse_ahci",
  "eclipse_framebuffer",
  "eclipse_fs",
- "eclipse_ide",
- "eclipse_pci",
  "eclipse_threader",
- "eclipse_x86_64_commands",
+ "ide",
  "limine",
+ "pci",
  "pic8259",
  "spin",
  "uart_16550",
  "x86_64",
-]
-
-[[package]]
-name = "eclipse_pci"
-version = "0.1.0"
-dependencies = [
- "eclipse_framebuffer",
- "eclipse_x86_64_commands",
 ]
 
 [[package]]
@@ -151,10 +138,6 @@ dependencies = [
  "spin",
  "x86_64",
 ]
-
-[[package]]
-name = "eclipse_x86_64_commands"
-version = "0.1.0"
 
 [[package]]
 name = "find-msvc-tools"
@@ -182,6 +165,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ide"
+version = "0.1.0"
+dependencies = [
+ "bare_x86_64",
+ "eclipse_framebuffer",
+ "spin",
+]
+
+[[package]]
 name = "limine"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -197,6 +189,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "224399e74b87b5f3557511d98dff8b14089b3dadafcab6bb93eab67d3aace965"
 dependencies = [
  "scopeguard",
+]
+
+[[package]]
+name = "pci"
+version = "0.1.0"
+dependencies = [
+ "bare_x86_64",
+ "eclipse_framebuffer",
 ]
 
 [[package]]

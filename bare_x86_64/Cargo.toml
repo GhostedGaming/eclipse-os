@@ -1,5 +1,5 @@
 [package]
-name = "eclipse_x86_64_commands"
+name = "bare_x86_64"
 version = "0.1.0"
 edition = "2024"
 

@@ -6,7 +6,7 @@
 extern crate alloc;
 
 use eclipse_framebuffer::println;
-use eclipse_x86_64_commands::*;
+use bare_x86_64::*;
 
 const ATA_SR_BSY: u8 = 0x80;
 const ATA_SR_DRDY: u8 = 0x40;
@@ -116,6 +116,8 @@ pub struct IdeDevice {
     pub size: u64,
     pub model: [u8; 41],
 }
+
+pub static mut COUNT: usize = 0;
 
 pub static mut IDE_DEVICES: [IdeDevice; 4] = [
     IdeDevice { reserved: 0, channel: 0, drive: 0, device_type: 0, signature: 0, capabilities: 0, command_sets: 0, size: 0, model: [0; 41] },
@@ -421,8 +423,6 @@ pub fn ide_write_sectors(drive: usize, lba: u64, data: &[u8]) -> u8 {
 }
 
 pub fn ide_init(bar0: u8, bar1: u8, bar2: u8, bar3: u8, bar4: u8) {
-    let mut count: usize = 0;
-
     unsafe {
         CHANNELS[ATA_PRIMARY as usize].base =
             (((bar0 as u32) & 0xFFFF_FFFC) + if bar0 == 0 { 0x1F0 } else { 0 }) as u16;
@@ -510,7 +510,7 @@ pub fn ide_init(bar0: u8, bar1: u8, bar2: u8, bar3: u8, bar4: u8) {
                                    drive_index, IDE_DEVICES[drive_index].size);
                         }
                         
-                        count += 1;
+                        COUNT += 1;
                         break;
                     }
                     
@@ -523,11 +523,13 @@ pub fn ide_init(bar0: u8, bar1: u8, bar2: u8, bar3: u8, bar4: u8) {
         for j in 0..2 {
             outb!(CHANNELS[j].ctrl, 0x00);
         }
-    }
 
-    if count == 0 {
-        println!("IDE: No devices found");
-    } else {
-        println!("IDE: devices detected: {}", count);
+        let count = COUNT;
+
+        if COUNT == 0 {
+            println!("IDE: No devices found");
+        } else {
+            println!("IDE: devices detected: {}", count);
+        }
     }
 }

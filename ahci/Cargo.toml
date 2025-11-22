@@ -1,8 +1,8 @@
 [package]
-name = "eclipse_ahci"
+name = "ahci"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
 eclipse_framebuffer ={ workspace = true }
-eclipse_pci ={ workspace = true }
+pci ={ workspace = true }

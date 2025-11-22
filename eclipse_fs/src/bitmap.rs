@@ -1,5 +1,5 @@
 use alloc::{vec::Vec, vec};
-use eclipse_ide::{ide_read_sectors, ide_write_sectors};
+use ide::{ide_read_sectors, ide_write_sectors};
 use super::SuperBlock;
 
 #[derive(Debug)]

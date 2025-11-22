@@ -1,7 +1,7 @@
 #![no_std]
 extern crate alloc;
 
-use eclipse_ide::{ide_read_sectors, ide_write_sectors};
+use ide::{ide_read_sectors, ide_write_sectors};
 use eclipse_framebuffer::println;
 use alloc::vec;
 

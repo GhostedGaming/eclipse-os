@@ -5,7 +5,7 @@
 
 extern crate alloc;
 
-use eclipse_x86_64_commands::{outl, inl};
+use bare_x86_64::{outl, inl};
 use eclipse_framebuffer::println;
 
 // PCI Configuration Space I/O Ports

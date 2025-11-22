@@ -4,7 +4,6 @@
 extern crate alloc;
 
 use core::arch::asm;
-use core::ops::RangeToInclusive;
 
 // External crates
 
@@ -13,14 +12,14 @@ use limine::request::{FramebufferRequest, MemoryMapRequest, RequestsEndMarker, R
 
 // Eclipse crates
 use eclipse_framebuffer::{ ScrollingTextRenderer, println, print, panic_print};
-use eclipse_ide::ide_init;
+use ide::ide_init;
 use eclipse_fs::{SuperBlock, write_eclipse_fs};
 use eclipse_fs::file_ops::{create_file, read_file, delete_file};
 use eclipse_fs::directory::DirectoryManager;
 use eclipse_fs::inodes::InodeManager;
-use eclipse_ahci::find_ahci_controller;
+use ahci::find_ahci_controller;
 use eclipse_pci::{check_all_buses, pci_find_ahci_controller, pci_enable_bus_master, pci_enable_memory_space};
-use eclipse_threader::runtime;
+use eclipse_threader::scheduler::scheduler::scheduler_init;
 use eclipse_os::mem::mem::{VMM, VirtAddr, PhysAddr, PageTableEntry};
 use eclipse_os::{gdt, idt, mem::mem};
 
@@ -132,6 +131,9 @@ unsafe extern "C" fn kmain() -> ! {
             println!("No AHCI controller found");
         }
     }
+
+    println!("Mapping APIC...");
+
     
     println!("Writing fs");
     write_eclipse_fs(0);
@@ -235,6 +237,10 @@ unsafe extern "C" fn kmain() -> ! {
     }
     
     println!("\nFilesystem Tests Complete");
+
+    println!("Initializing Scheduler...");
+    scheduler_init();
+    println!("Scheduler Initialized");
 
     hcf();
 }

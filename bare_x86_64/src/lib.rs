@@ -1,5 +1,7 @@
 #![no_std]
 
+pub mod cpu;
+
 #[macro_export]
 macro_rules! inb {
     ($port:expr) => {{

@@ -1,11 +1,13 @@
 //! The IDT(Interrupt Descriptor Table) is a data structure used by the CPU for interrupts handling
 
 use core::ptr::addr_of_mut;
+use spin::Mutex;
 use eclipse_framebuffer::print;
 use pic8259::ChainedPics;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame};
-use spin::Mutex;
-use eclipse_ide::ide_irq_handler;
+
+use ide::ide_irq_handler;
+use eclipse_threader::scheduler;
 
 static mut IDT: InterruptDescriptorTable = InterruptDescriptorTable::new();
 pub const PIC_1_OFFSET: u8 = 32;
@@ -163,6 +165,7 @@ extern "x86-interrupt" fn security_exception_handler(
 
 extern "x86-interrupt" fn timer_handler(_stack_frame: InterruptStackFrame) {
     print!(".");
+    
     unsafe { PICS.lock().notify_end_of_interrupt(PIC_1_OFFSET); }
 }
 
